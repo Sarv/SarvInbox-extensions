@@ -35,8 +35,11 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { Parser } from 'tar';
+
 import {
   API_BASE,
+  MANIFEST_NAME,
   RAW_BASE,
   REPO_ROOT,
   REPO_URL,
@@ -91,6 +94,48 @@ async function download(url) {
   });
   if (!response.ok) throw new Error(`GET ${url} -> ${response.status} ${response.statusText}`);
   return Buffer.from(await response.arrayBuffer());
+}
+
+/**
+ * The manifest INSIDE a published archive.
+ *
+ * Regression: this used to describe every entry with the manifest sitting in
+ * the working tree while pinning the download to an already-published archive.
+ * The two drift the moment a manifest changes without a release — and the app
+ * re-checks the archive's own permissions against the ones the registry listed,
+ * so it refused the install outright ("Archive asks for different permissions
+ * than the registry listed"). The registry must describe the bytes it pins, so
+ * the manifest is read back out of those exact bytes.
+ */
+async function manifestInArchive(id, bytes) {
+  const found = await new Promise((resolve, reject) => {
+    const chunks = [];
+    let matched = false;
+    const parser = new Parser({
+      onReadEntry(entry) {
+        // Archives are published with a leading folder, and tar paths always
+        // use '/' whatever built them.
+        const name = entry.path.replace(/^[^/]+\//, '');
+        if (name !== MANIFEST_NAME) {
+          entry.resume();
+          return;
+        }
+        matched = true;
+        entry.on('data', (chunk) => chunks.push(chunk));
+      },
+    });
+    parser.on('end', () => resolve(matched ? Buffer.concat(chunks) : null));
+    parser.on('error', reject);
+    parser.end(bytes);
+  });
+
+  if (!found) throw new Error(`${id}: published archive contains no ${MANIFEST_NAME}`);
+
+  const manifest = JSON.parse(found.toString('utf8'));
+  if (manifest.id !== id) {
+    throw new Error(`${id}: published archive declares id "${manifest.id}"`);
+  }
+  return manifest;
 }
 
 /**
@@ -218,24 +263,28 @@ async function main() {
   const skipped = [];
 
   for (const id of ids) {
-    const manifest = await readManifest(id);
+    const source = await readManifest(id);
     const published = releases.get(id);
     if (!published) {
       skipped.push(id);
       continue;
     }
-    if (published.version !== manifest.version) {
-      process.stderr.write(
-        `NOTE: ${id} manifest is at ${manifest.version}, newest release is ${published.version} — listing the released one\n`
-      );
-    }
 
     const bytes = await download(published.asset.browser_download_url);
+    // Everything below comes from the archive, not from `source`: the working
+    // tree is where the NEXT release is being written, and describing an entry
+    // with it would promise users something the download does not contain.
+    const manifest = await manifestInArchive(id, bytes);
+    if (source.version !== manifest.version) {
+      process.stderr.write(
+        `NOTE: ${id} is at ${source.version} in the tree, newest release is ${manifest.version} — listing the released one\n`
+      );
+    }
 
     extensions.push({
       id,
       name: manifest.name,
-      version: published.version,
+      version: manifest.version,
       description: manifest.description,
       author: manifest.author,
       license: manifest.license ?? 'MIT',
