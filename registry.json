@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-22T10:39:31.641Z",
+  "generatedAt": "2026-09-22T11:25:43.938Z",
   "source": "https://github.com/Sarv/SarvInbox-extensions",
   "stats": {
     "stars": 0,
@@ -33,20 +33,6 @@
         "settings:read"
       ],
       "contributes": {
-        "capabilities": [
-          {
-            "id": "thread.summarize",
-            "export": "summarizeThread",
-            "priority": 10,
-            "description": "Summarize a whole thread on demand"
-          },
-          {
-            "id": "email.summarize",
-            "export": "summarizeEmail",
-            "priority": 10,
-            "description": "Summarize a single message on demand"
-          }
-        ],
         "workflows": [
           {
             "id": "summarize-email",
@@ -81,6 +67,7 @@
           "email:body-ready"
         ]
       },
+      "screenshots": null,
       "download": {
         "url": "https://github.com/Sarv/SarvInbox-extensions/releases/download/email-summarization-v1.0.0/email-summarization-1.0.0.tgz",
         "sha256": "e11e3ada2dfa0789f92aaa1edb723c8cc8559234b04ffd2787a5afda4ab73694",
@@ -89,7 +76,7 @@
         "releaseTag": "email-summarization-v1.0.0"
       },
       "stats": {
-        "downloads": 3
+        "downloads": 5
       }
     },
     {
@@ -114,7 +101,6 @@
       "permissions": [
         "email:read",
         "email:label",
-        "email:flag",
         "storage:local",
         "settings:read",
         "ui:notify"
@@ -144,12 +130,6 @@
             "description": "Also tag the email 'otp' so codes stay findable afterwards"
           },
           {
-            "key": "otp-code.markReadOnCopy",
-            "type": "boolean",
-            "default": true,
-            "description": "Mark the email read once you copy its code"
-          },
-          {
             "key": "otp-code.minConfidence",
             "type": "number",
             "default": 0.55,
@@ -163,6 +143,7 @@
           "email:body-ready"
         ]
       },
+      "screenshots": null,
       "download": {
         "url": "https://github.com/Sarv/SarvInbox-extensions/releases/download/otp-code-v1.0.0/otp-code-1.0.0.tgz",
         "sha256": "455a25797fae56bcc746225b4fd319068d41644fea0d20094594cdc1ce8b5213",
@@ -171,7 +152,7 @@
         "releaseTag": "otp-code-v1.0.0"
       },
       "stats": {
-        "downloads": 5
+        "downloads": 9
       }
     },
     {
@@ -235,6 +216,7 @@
           "email:synced"
         ]
       },
+      "screenshots": null,
       "download": {
         "url": "https://github.com/Sarv/SarvInbox-extensions/releases/download/vip-scoring-v1.0.0/vip-scoring-1.0.0.tgz",
         "sha256": "d13168272cd2e5f50310cfdbbf8456fdf6581f81bf9a40801d40172232d6f95a",
@@ -243,7 +225,7 @@
         "releaseTag": "vip-scoring-v1.0.0"
       },
       "stats": {
-        "downloads": 4
+        "downloads": 7
       }
     }
   ]
