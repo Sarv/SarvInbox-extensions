@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-22T06:36:40.627Z",
+  "generatedAt": "2026-09-22T10:39:31.641Z",
   "source": "https://github.com/Sarv/SarvInbox-extensions",
   "stats": {
     "stars": 0,
@@ -33,6 +33,20 @@
         "settings:read"
       ],
       "contributes": {
+        "capabilities": [
+          {
+            "id": "thread.summarize",
+            "export": "summarizeThread",
+            "priority": 10,
+            "description": "Summarize a whole thread on demand"
+          },
+          {
+            "id": "email.summarize",
+            "export": "summarizeEmail",
+            "priority": 10,
+            "description": "Summarize a single message on demand"
+          }
+        ],
         "workflows": [
           {
             "id": "summarize-email",
@@ -75,7 +89,7 @@
         "releaseTag": "email-summarization-v1.0.0"
       },
       "stats": {
-        "downloads": 0
+        "downloads": 3
       }
     },
     {
@@ -100,6 +114,7 @@
       "permissions": [
         "email:read",
         "email:label",
+        "email:flag",
         "storage:local",
         "settings:read",
         "ui:notify"
@@ -129,6 +144,12 @@
             "description": "Also tag the email 'otp' so codes stay findable afterwards"
           },
           {
+            "key": "otp-code.markReadOnCopy",
+            "type": "boolean",
+            "default": true,
+            "description": "Mark the email read once you copy its code"
+          },
+          {
             "key": "otp-code.minConfidence",
             "type": "number",
             "default": 0.55,
@@ -150,7 +171,7 @@
         "releaseTag": "otp-code-v1.0.0"
       },
       "stats": {
-        "downloads": 0
+        "downloads": 5
       }
     },
     {
@@ -222,7 +243,7 @@
         "releaseTag": "vip-scoring-v1.0.0"
       },
       "stats": {
-        "downloads": 0
+        "downloads": 4
       }
     }
   ]

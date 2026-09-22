@@ -1,9 +1,26 @@
 #!/usr/bin/env node
 /**
- * Rebuild `registry.json` — the index Sarv Inbox fetches to populate its Browse
- * tab.
+ * Rebuild the registry — what Sarv Inbox fetches to populate its Browse tab.
  *
  * Usage: node scripts/build-registry.mjs [--dry-run]
+ *
+ * Two artifacts come out of one run, from the same data:
+ *
+ * - `registry.json`, pretty-printed and complete. This is the file a human
+ *   reviews: every release shows up as a readable diff, one field per line, and
+ *   a changed checksum or a new permission is impossible to miss. Nothing reads
+ *   it over the network.
+ * - `registry/`, minified and split. `registry/index.json` carries only the
+ *   fields the Browse list actually draws; everything else — the download URL,
+ *   the pinned digest, the `contributes` block — lives in `registry/e/<id>.json`,
+ *   fetched for the one extension a user chose to install. This is what the app
+ *   requests, so the cost of opening Browse does not grow with what an
+ *   extension happens to declare.
+ *
+ * URLs inside `registry/` are relative to the document that carries them, which
+ * keeps them short and, more usefully, keeps them on whichever host served the
+ * index: point the app at a CDN mirror and the icons come from the mirror too,
+ * with nothing to reconfigure.
  *
  * Everything the app needs to INSTALL an extension comes from here, including
  * the SHA-256 it verifies the download against. That hash is computed by
@@ -15,7 +32,7 @@
  * An extension with no published release is left out rather than listed as
  * uninstallable — the registry describes what can be installed today.
  */
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
@@ -30,7 +47,11 @@ import {
   sha256,
 } from './extension-paths.mjs';
 
+/** The shape of `registry.json`: one flat list, every field inline. */
 const SCHEMA_VERSION = 1;
+/** The shape of `registry/`: a thin index plus one detail doc per extension. */
+const SERVED_SCHEMA_VERSION = 2;
+const SERVED_DIR = path.join(REPO_ROOT, 'registry');
 
 function githubHeaders() {
   const headers = {
@@ -100,6 +121,93 @@ function indexReleases(releases) {
   return byExtension;
 }
 
+/**
+ * The thin entry the Browse list is drawn from.
+ *
+ * Deliberately not "everything except the download block": each field is here
+ * because a card renders it. `contributes` is the clearest case — it is the
+ * largest field in the whole document and the app's parser has never read it,
+ * so every byte of it was paid for on every refresh by every user for nothing.
+ *
+ * `homepage` stays absolute: the app hands it straight to the OS browser from a
+ * renderer loaded over `file://`, where a relative URL would resolve to nothing.
+ */
+function thinEntry(entry) {
+  return {
+    id: entry.id,
+    name: entry.name,
+    version: entry.version,
+    description: entry.description,
+    author: entry.author,
+    keywords: entry.keywords,
+    homepage: entry.homepage,
+    // Relative to `registry/index.json`, so the detail document and the icon
+    // follow the index to whatever host it is served from.
+    iconUrl: entry.iconUrl ? `../extensions/${entry.id}/${path.basename(entry.iconUrl)}` : null,
+    detailUrl: `e/${entry.id}.json`,
+    engines: entry.engines,
+    permissions: entry.permissions,
+    // The list shows a size for every extension; only the chosen one costs a
+    // second request to learn where those bytes are and what they must hash to.
+    size: entry.download.size,
+    stats: entry.stats,
+  };
+}
+
+/**
+ * Everything the thin entry left out, for one extension.
+ *
+ * `id` and `version` are repeated so the app can refuse a detail document that
+ * has drifted from the index it was reached through - the user is about to
+ * approve permissions for the version they were shown, and installing a
+ * different one is the failure this check exists to prevent.
+ */
+function detailDocument(entry) {
+  return {
+    schemaVersion: SERVED_SCHEMA_VERSION,
+    id: entry.id,
+    version: entry.version,
+    license: entry.license,
+    homepage: entry.homepage,
+    // Relative to `registry/e/<id>.json`.
+    readmeUrl: `../../extensions/${entry.id}/README.md`,
+    engines: entry.engines,
+    permissions: entry.permissions,
+    contributes: entry.contributes,
+    download: entry.download,
+  };
+}
+
+/** Write the artifacts the app actually fetches: minified, and split in two. */
+async function writeServedRegistry(registry) {
+  // Rebuilt from scratch so an extension that was withdrawn cannot leave a
+  // detail document behind for anyone holding an older index.
+  await rm(SERVED_DIR, { recursive: true, force: true });
+  await mkdir(path.join(SERVED_DIR, 'e'), { recursive: true });
+
+  const index = {
+    schemaVersion: SERVED_SCHEMA_VERSION,
+    generatedAt: registry.generatedAt,
+    source: registry.source,
+    stats: registry.stats,
+    extensions: registry.extensions.map(thinEntry),
+  };
+  await writeFile(path.join(SERVED_DIR, 'index.json'), JSON.stringify(index), 'utf8');
+
+  for (const entry of registry.extensions) {
+    await writeFile(
+      path.join(SERVED_DIR, 'e', `${entry.id}.json`),
+      JSON.stringify(detailDocument(entry)),
+      'utf8'
+    );
+  }
+
+  const indexBytes = Buffer.byteLength(JSON.stringify(index), 'utf8');
+  process.stderr.write(
+    `registry/index.json: ${indexBytes} bytes for ${registry.extensions.length} entries, plus ${registry.extensions.length} detail document(s)\n`
+  );
+}
+
 async function main() {
   const dryRun = process.argv.includes('--dry-run');
   const ids = await listExtensionIds();
@@ -167,6 +275,7 @@ async function main() {
     process.stdout.write(json);
   } else {
     await writeFile(path.join(REPO_ROOT, 'registry.json'), json, 'utf8');
+    await writeServedRegistry(registry);
   }
 
   process.stderr.write(
