@@ -19,6 +19,20 @@
     "settings:read"
   ],
   "contributes": {
+    "capabilities": [
+      {
+        "id": "thread.summarize",
+        "export": "summarizeThread",
+        "priority": 10,
+        "description": "Summarize a whole thread on demand"
+      },
+      {
+        "id": "email.summarize",
+        "export": "summarizeEmail",
+        "priority": 10,
+        "description": "Summarize a single message on demand"
+      }
+    ],
     "workflows": [
       {
         "id": "summarize-email",
