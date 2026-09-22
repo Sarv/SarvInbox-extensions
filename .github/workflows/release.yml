@@ -1,0 +1,104 @@
+name: Release extension
+
+# Tag format is `<extension-id>-v<version>`, e.g. `otp-code-v1.2.0`. One tag
+# namespace for the whole repository is what lets a single workflow serve every
+# extension and lets the registry builder tell releases apart.
+on:
+  push:
+    tags:
+      - '*-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Resolve the extension from the tag
+        id: target
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          id="${tag%-v*}"
+          version="${tag##*-v}"
+          if [ ! -d "extensions/$id" ]; then
+            echo "No extensions/$id for tag $tag" >&2
+            exit 1
+          fi
+          manifest_version=$(node -p "require('./extensions/$id/sarvinbox-extension.json').version")
+          if [ "$manifest_version" != "$version" ]; then
+            echo "Tag says $version but extensions/$id/sarvinbox-extension.json says $manifest_version" >&2
+            exit 1
+          fi
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - run: pnpm install --frozen-lockfile
+
+      # The whole repository is verified, not just the tagged extension: they
+      # share one SDK version, so a release is also a statement that the others
+      # still build against it.
+      - run: pnpm type-check
+      - run: pnpm test
+      - run: pnpm build
+      - run: node scripts/verify-bundle.mjs
+
+      - name: Pack
+        id: pack
+        run: node scripts/pack-extension.mjs "${{ steps.target.outputs.id }}"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "${{ steps.target.outputs.id }} ${{ steps.target.outputs.version }}" \
+            --notes "SHA-256: \`${{ steps.pack.outputs.sha256 }}\`
+
+          Install from the Extensions panel in Sarv Inbox, or download the archive below." \
+            "${{ steps.pack.outputs.archive }}" \
+            "${{ steps.pack.outputs.checksum_file }}"
+
+  registry:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Rebuilds registry.json from the published releases and commits it back,
+      # so the app sees the new version without anyone editing a file by hand.
+      # The checksum is computed by downloading the asset that was just
+      # published, not copied from the job above.
+      - name: Rebuild registry.json
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/build-registry.mjs
+
+      - name: Commit
+        run: |
+          if git diff --quiet -- registry.json; then
+            echo "registry.json unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add registry.json
+          git commit -m "chore(registry): publish ${GITHUB_REF_NAME}"
+          git push origin main
