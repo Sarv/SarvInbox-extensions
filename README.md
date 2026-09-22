@@ -8,11 +8,26 @@
 Extensions for [Sarv Inbox](https://github.com/Sarv/Inbox), and the registry
 the app installs them from.
 
-The app reads [`registry.json`](registry.json) at the root of this repository.
-Each entry points at a `.tgz` attached to a GitHub release and pins its SHA-256,
-so an install is: fetch the index, download the archive, check the hash, show
-the user what permissions the extension is asking for, and only then unpack it.
-Nothing is executed before that hash matches.
+The app reads [`registry/index.json`](registry/index.json). Each entry names a
+`.tgz` attached to a GitHub release, and [`registry/e/`](registry/e) holds one
+document per extension with that archive's URL and its pinned SHA-256. So an
+install is: fetch the index, fetch the one detail document for what the user
+chose, download the archive, check the hash, show the user what permissions the
+extension is asking for, and only then unpack it. Nothing is executed before
+that hash matches.
+
+[`registry.json`](registry.json) at the root is the same data, complete and
+pretty-printed. It is the file to *read*: every release lands as a legible
+diff, one field per line, so a changed checksum or a new permission is
+impossible to miss in review. Nothing fetches it — the split index exists so
+that opening the Browse tab does not download the `contributes` block of every
+extension that has ever been published. Both come out of the same
+`scripts/build-registry.mjs` run and cannot drift apart.
+
+URLs inside `registry/` are relative to the document carrying them. That keeps
+them short, and it keeps them on whichever host served the index: point an app
+at a CDN mirror of this repository and the icons and detail documents come from
+the mirror too, with nothing to reconfigure.
 
 ---
 
@@ -474,7 +489,7 @@ This is the path that gets you listed in the app's Browse tab for everyone.
    further input: verifies the whole repository, packs
    `<id>-<version>.tgz`, creates the GitHub release with the archive and a
    `.sha256` beside it, re-runs `scripts/build-registry.mjs`, and commits the
-   updated `registry.json` to `main`.
+   updated `registry.json` and `registry/` to `main`.
 
    The checksum in the registry is computed by **downloading the published
    asset and hashing it**, not copied from the build job. The point of pinning a
@@ -492,9 +507,11 @@ To ship an update: bump `version` in both `package.json` and
 You do not need anybody's permission to ship an extension. Copy
 [`scripts/`](scripts) and [`.github/workflows/release.yml`](.github/workflows/release.yml)
 into your own repository — they read `GITHUB_REPOSITORY`, so every URL they
-generate points at wherever they are running — and publish your own
-`registry.json` at
-`https://raw.githubusercontent.com/<you>/<repo>/main/registry.json`.
+generate points at wherever they are running — and publish your own index at
+`https://raw.githubusercontent.com/<you>/<repo>/main/registry/index.json`.
+
+A flat `registry.json` with the download block inline works too: the app still
+reads that format and asks for no detail document when it finds one.
 
 Users add it in Settings, Extensions, Registries. The app only accepts `https://`
 URLs on `github.com` and `raw.githubusercontent.com`, verifies the pinned
@@ -514,7 +531,7 @@ what makes them independently checkable.
 | **Stars** | `stargazers_count` on the repository | Next to the registry name in Browse |
 | **Rating** | Not implemented — see below | Reserved in the schema |
 
-`scripts/build-registry.mjs` writes both into `registry.json` when it runs, so
+`scripts/build-registry.mjs` writes both into the registry when it runs, so
 they are available even when the app cannot reach the GitHub API. The app also
 refreshes them live from the API with a cache, and falls back to the registry
 values on a rate limit rather than showing nothing.
@@ -613,10 +630,12 @@ extensions/            one folder per extension, each a pnpm workspace package
 scripts/
   extension-paths.mjs  shared helpers: repo URLs, tag parsing, manifest reading
   pack-extension.mjs   build a release .tgz and its SHA-256
-  build-registry.mjs   regenerate registry.json from the published releases
+  build-registry.mjs   regenerate the registry from the published releases
   verify-bundle.mjs    require() every built bundle from a bare Node process
 vendor/extension-sdk/  prebuilt SDK, checked in until it is published to npm
-registry.json          the index the app fetches
+registry.json          the full registry, pretty-printed, for humans to review
+registry/index.json    the thin index the app fetches
+registry/e/<id>.json   per extension: download URL and pinned SHA-256
 ```
 
 `vendor/extension-sdk` is temporary. The extensions depend on
