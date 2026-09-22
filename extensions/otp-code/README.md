@@ -5,7 +5,9 @@ them on a card with a copy button and a live countdown, so you never open the
 email to read six digits.
 
 It also tags those emails `otp`, which is what makes "where was that code from
-last Tuesday" answerable afterwards.
+last Tuesday" answerable afterwards, and marks a message read as soon as you
+copy its code — the code is what you wanted, so the mail never has to be opened
+and never sits unread.
 
 ## What it does
 
@@ -14,7 +16,8 @@ last Tuesday" answerable afterwards.
 | Runs on | Every message, twice: on arrival (subject only) and again once the body is downloaded |
 | Shows | A notification card: sender, the code, a copy button, and a countdown to expiry |
 | Tags | `otp` on any message a code was found in |
-| Needs | `email:read`, `email:label`, `storage:local`, `settings:read`, `ui:notify` |
+| On copy | Marks that message read — you used the code, so the mail is done |
+| Needs | `email:read`, `email:label`, `email:flag`, `storage:local`, `settings:read`, `ui:notify` |
 | Needs no | Network access and no AI — detection is local, offline and free |
 
 The countdown uses the validity the email itself states ("this code expires in
@@ -30,6 +33,7 @@ code from last March is not something you are waiting for.
 | --- | --- | --- |
 | `otp-code.enabled` | `true` | Surface codes at all |
 | `otp-code.tagEmails` | `true` | Also tag the message `otp` |
+| `otp-code.markReadOnCopy` | `true` | Mark the message read once you copy its code |
 | `otp-code.minConfidence` | `0.55` | How certain the detector must be. Raise it if you see false positives, lower it if codes are being missed |
 
 ## How detection works

@@ -12,7 +12,7 @@
   "engines": {
     "sarvinbox": "^1.1.0"
   },
-  "permissions": ["email:read", "email:label", "storage:local", "settings:read", "ui:notify"],
+  "permissions": ["email:read", "email:label", "email:flag", "storage:local", "settings:read", "ui:notify"],
   "contributes": {
     "workflows": [
       {
@@ -36,6 +36,12 @@
         "type": "boolean",
         "default": true,
         "description": "Also tag the email 'otp' so codes stay findable afterwards"
+      },
+      {
+        "key": "otp-code.markReadOnCopy",
+        "type": "boolean",
+        "default": true,
+        "description": "Mark the email read once you copy its code"
       },
       {
         "key": "otp-code.minConfidence",

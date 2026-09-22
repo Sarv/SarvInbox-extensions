@@ -1,13 +1,15 @@
 import type {
   EmailRecord,
   ExtensionContext,
+  ExtensionUIAction,
+  ExtensionUIActionHandler,
   ExtensionUINotification,
   ExtensionWorkflow,
 } from '@sarvinbox/extension-sdk';
 import { describe, it, expect } from 'vitest';
 
 
-import { activate, resolveMinConfidence } from '../../src/index';
+import { activate, emailIdForAction, resolveMinConfidence } from '../../src/index';
 import { MIN_CONFIDENCE } from '../../src/otp-detect';
 
 const NOW_SECONDS = Math.floor(Date.now() / 1000);
@@ -17,15 +19,22 @@ interface Harness {
   notified: ExtensionUINotification[];
   dismissed: string[];
   errors: unknown[][];
+  /** Deliver a card action the way the host does after the reader clicks. */
+  act: (action: ExtensionUIAction) => Promise<void>;
+  /** Every `mail.*` call the extension made, in order. */
+  mailCalls: Array<{ method: string; emailId: string }>;
 }
 
 function activateHarness(
   settings: Record<string, unknown> = {},
-  onNotify?: (notification: ExtensionUINotification) => void
+  onNotify?: (notification: ExtensionUINotification) => void,
+  markReadFails?: Error
 ): Harness {
   const notified: ExtensionUINotification[] = [];
   const dismissed: string[] = [];
   const errors: unknown[][] = [];
+  const mailCalls: Array<{ method: string; emailId: string }> = [];
+  const actionHandlers: ExtensionUIActionHandler[] = [];
   let workflow: ExtensionWorkflow | undefined;
 
   const context = {
@@ -46,6 +55,19 @@ function activateHarness(
         notified.push(notification);
       },
       dismiss: (id: string) => dismissed.push(id),
+      onAction: (handler: ExtensionUIActionHandler) => {
+        actionHandlers.push(handler);
+        return () => {
+          const at = actionHandlers.indexOf(handler);
+          if (at >= 0) actionHandlers.splice(at, 1);
+        };
+      },
+    },
+    mail: {
+      markRead: async (emailId: string) => {
+        mailCalls.push({ method: 'markRead', emailId });
+        if (markReadFails) throw markReadFails;
+      },
     },
     log: {
       debug: () => undefined,
@@ -58,7 +80,12 @@ function activateHarness(
 
   activate(context);
   if (!workflow) throw new Error('activate did not register a workflow');
-  return { workflow, notified, dismissed, errors };
+
+  const act = async (action: ExtensionUIAction): Promise<void> => {
+    for (const handler of actionHandlers) await handler(action);
+  };
+
+  return { workflow, notified, dismissed, errors, act, mailCalls };
 }
 
 function makeEmail(overrides: Partial<EmailRecord> = {}): EmailRecord {
@@ -213,5 +240,92 @@ describe('otp-code workflow', () => {
     expect(result.success).toBe(false);
     expect(result.error).toBe(boom);
     expect(harness.errors).toHaveLength(1);
+  });
+});
+
+/**
+ * Marking the message read once its code has been copied.
+ *
+ * What breaks if this block goes red: the extension goes back to being
+ * write-once — it can show a code but cannot act on the reader taking it, so
+ * every verification mail stays bold in the list after it has been used. The
+ * distinctions pinned here are the ones that make that safe: only a COPY counts
+ * (a dismissal or an expiry means the code went unused, and marking that read
+ * would hide a message still needed), and a host that refuses the change must
+ * not take the extension down with it.
+ */
+describe('marking read on copy', () => {
+  it('marks the copied message read', async () => {
+    const harness = activateHarness();
+
+    await harness.act({ notificationId: 'code:email-1', action: 'copy', emailId: 'email-1' });
+
+    expect(harness.mailCalls).toEqual([{ method: 'markRead', emailId: 'email-1' }]);
+  });
+
+  // Regression: the host may omit `emailId` on an older build. The card id it
+  // does send carries the message id, because the extension minted it.
+  it('recovers the message id from the card id when the action omits it', async () => {
+    const harness = activateHarness();
+
+    await harness.act({ notificationId: 'code:email-7', action: 'copy' });
+
+    expect(harness.mailCalls).toEqual([{ method: 'markRead', emailId: 'email-7' }]);
+  });
+
+  it.each(['dismiss', 'expire', 'open'] as const)('does nothing on a %s', async (action) => {
+    const harness = activateHarness();
+
+    await harness.act({ notificationId: 'code:email-1', action, emailId: 'email-1' });
+
+    expect(harness.mailCalls).toEqual([]);
+  });
+
+  it('does nothing when the reader turned the setting off', async () => {
+    const harness = activateHarness({ 'otp-code.markReadOnCopy': false });
+
+    await harness.act({ notificationId: 'code:email-1', action: 'copy', emailId: 'email-1' });
+
+    expect(harness.mailCalls).toEqual([]);
+  });
+
+  it('is on unless the reader turned it off', async () => {
+    const harness = activateHarness({ 'otp-code.markReadOnCopy': true });
+
+    await harness.act({ notificationId: 'code:email-1', action: 'copy', emailId: 'email-1' });
+
+    expect(harness.mailCalls).toHaveLength(1);
+  });
+
+  // Regression: a refused permission or a message that has since been deleted
+  // must not throw out of the handler — the host would log an extension crash
+  // for what is an ordinary outcome, and the copy already succeeded.
+  it('survives a host that refuses the change', async () => {
+    const harness = activateHarness({}, undefined, new Error('email:flag was not granted'));
+
+    await expect(
+      harness.act({ notificationId: 'code:email-1', action: 'copy', emailId: 'email-1' })
+    ).resolves.toBeUndefined();
+  });
+
+  it('does nothing when neither the action nor the card names a message', async () => {
+    const harness = activateHarness();
+
+    await harness.act({ notificationId: 'something-else', action: 'copy' });
+
+    expect(harness.mailCalls).toEqual([]);
+  });
+});
+
+describe('emailIdForAction', () => {
+  it('prefers the id the host sent over the one in the card id', () => {
+    expect(
+      emailIdForAction({ notificationId: 'code:email-1', action: 'copy', emailId: 'email-2' })
+    ).toBe('email-2');
+  });
+
+  it('is null for a card id that is not one of ours', () => {
+    expect(emailIdForAction({ notificationId: 'other:email-1', action: 'copy' })).toBeNull();
+    expect(emailIdForAction({ notificationId: 'code:', action: 'copy' })).toBeNull();
   });
 });

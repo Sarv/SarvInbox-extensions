@@ -69,6 +69,21 @@ export function notificationId(emailId: string): string {
 }
 
 /**
+ * Recover the email a card belongs to.
+ *
+ * The host reports the card's own id back with every reader action, and the id
+ * is built from the email id — so the extension needs no side table mapping one
+ * to the other, which would go stale the moment the process restarts while a
+ * card is still on screen. Returns null for an id this extension did not make.
+ */
+export function emailIdFromNotificationId(id: string): string | null {
+  const prefix = `${CARD_PREFIX}:`;
+  if (!id.startsWith(prefix)) return null;
+  const emailId = id.slice(prefix.length);
+  return emailId || null;
+}
+
+/**
  * Build the card. `expiresAt` is absolute UTC epoch ms so the renderer can run
  * its countdown without knowing when detection happened.
  */

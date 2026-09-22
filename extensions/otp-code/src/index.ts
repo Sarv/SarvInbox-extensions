@@ -13,17 +13,24 @@
 import type {
   EmailRecord,
   ExtensionContext,
+  ExtensionUIAction,
   ExtensionWorkflowResult,
 } from '@sarvinbox/extension-sdk';
 
 import { MIN_CONFIDENCE, detectOtpCode } from './otp-detect';
-import { OTP_TAG, buildOtpNotification, isFreshEnoughToNotify } from './otp-notification';
+import {
+  OTP_TAG,
+  buildOtpNotification,
+  emailIdFromNotificationId,
+  isFreshEnoughToNotify,
+} from './otp-notification';
 
 const WORKFLOW_ID = 'detect-code';
 
 const SETTING_ENABLED = 'otp-code.enabled';
 const SETTING_TAG_EMAILS = 'otp-code.tagEmails';
 const SETTING_MIN_CONFIDENCE = 'otp-code.minConfidence';
+const SETTING_MARK_READ_ON_COPY = 'otp-code.markReadOnCopy';
 
 /**
  * Codes already shown, so the body-stage re-run does not restart a countdown
@@ -53,8 +60,46 @@ export function resolveMinConfidence(configured: unknown): number {
   return configured;
 }
 
+/**
+ * Which email a reader action refers to, preferring what the host reported.
+ *
+ * The host echoes the card's `emailId` back, but a card raised by an older
+ * build may not carry one; the id itself always encodes the email, so that is
+ * the fallback rather than giving up on the click.
+ */
+export function emailIdForAction(action: ExtensionUIAction): string | null {
+  return action.emailId || emailIdFromNotificationId(action.notificationId);
+}
+
 export function activate(context: ExtensionContext): void {
   const shown = new Map<string, string>();
+
+  /**
+   * Copying the code is the reader saying they used it — so the mail has done
+   * its job and is marked read, exactly as if they had opened it. That is the
+   * whole point of the card: the code arrives, is copied, and the message never
+   * has to be visited at all, which without this would leave a permanently
+   * growing pile of unread one-time passcodes.
+   *
+   * Only 'copy' acts. A dismissal or an expiry means the reader did NOT take
+   * the code, and marking that read would hide a message they may still need.
+   */
+  context.ui.onAction(async (action: ExtensionUIAction): Promise<void> => {
+    if (action.action !== 'copy') return;
+    if (context.settings.get<boolean>(SETTING_MARK_READ_ON_COPY, true) === false) return;
+
+    const emailId = emailIdForAction(action);
+    if (!emailId) return;
+
+    try {
+      await context.mail.markRead(emailId);
+      context.log.info(`Marked ${emailId} read after its code was copied`);
+    } catch (error) {
+      // The code is already on the clipboard; failing to file the mail is not
+      // worth surfacing to the reader, only worth recording.
+      context.log.warn(`Could not mark ${emailId} read: ${String(error)}`);
+    }
+  });
 
   context.registerWorkflow({
     id: WORKFLOW_ID,
