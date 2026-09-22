@@ -1,0 +1,13 @@
+node_modules/
+dist/
+
+# The vendored SDK is a PREBUILT drop-in for a package that is not on npm yet,
+# so its dist/ is source as far as this repository is concerned - a fresh clone
+# cannot build without it. Remove this together with vendor/ once
+# @sarvinbox/extension-sdk is published (see vendor/extension-sdk/NOTICE.md).
+!vendor/extension-sdk/dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+.turbo/
+release/

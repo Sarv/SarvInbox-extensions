@@ -1,0 +1,30 @@
+{
+  "name": "sarvinbox-extensions",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Extensions for Sarv Inbox, and the registry the app installs them from",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sarv/SarvInbox-extensions.git"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "type-check": "pnpm -r type-check",
+    "registry": "node scripts/build-registry.mjs",
+    "verify": "pnpm type-check && pnpm test && pnpm build && node scripts/verify-bundle.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "overrides": {
+      "@sarvinbox/extension-sdk": "file:./vendor/extension-sdk"
+    }
+  }
+}
