@@ -177,6 +177,62 @@ function indexReleases(releases) {
  * `homepage` stays absolute: the app hands it straight to the OS browser from a
  * renderer loaded over `file://`, where a relative URL would resolve to nothing.
  */
+/**
+ * The part of `contributes` the Browse LIST needs.
+ *
+ * The app turns this into "what this does and where you will see it", which is
+ * the question being asked while browsing - before anything has been clicked,
+ * so it has to ride along in the thin index. Only the fields that produce a
+ * sentence survive: a workflow's whole configuration block would put kilobytes
+ * of machine-facing settings in a document every user downloads on every
+ * refresh, to render one line of text.
+ */
+function contributesSummary(contributes = {}) {
+  const summary = {};
+  const panels = (contributes.panels ?? []).map((panel) => ({
+    title: panel.title,
+    surface: panel.surface,
+    ...(panel.autoOpen ? { autoOpen: true } : {}),
+  }));
+  const workflows = (contributes.workflows ?? []).map((workflow) => ({
+    name: workflow.name,
+    ...(workflow.requiresAI ? { requiresAI: true } : {}),
+  }));
+  const settings = (contributes.settings ?? []).map((setting) => ({ key: setting.key }));
+  const capabilities = (contributes.capabilities ?? []).map((capability) => ({
+    id: capability.id,
+    ...(capability.description ? { description: capability.description } : {}),
+  }));
+
+  if (panels.length > 0) summary.panels = panels;
+  if (workflows.length > 0) summary.workflows = workflows;
+  if (settings.length > 0) summary.settings = settings;
+  if (capabilities.length > 0) summary.capabilities = capabilities;
+  return Object.keys(summary).length > 0 ? summary : null;
+}
+
+/**
+ * Screenshot URLs, absolute and on a host the app will actually load from.
+ *
+ * An author writes a path inside their own extension folder, the same way they
+ * write `icon`. It is expanded here rather than left relative because the app
+ * refuses any image URL outside the registry's host allowlist - a screenshot is
+ * fetched simply by drawing the catalogue, so an arbitrary host would be a
+ * request made on the reader's behalf for an extension they have not installed.
+ */
+function screenshotUrls(id, screenshots) {
+  if (!Array.isArray(screenshots)) return null;
+  const resolved = screenshots
+    .filter((shot) => shot && typeof shot.url === 'string' && shot.url.trim() !== '')
+    .map((shot) => ({
+      url: /^https?:\/\//.test(shot.url)
+        ? shot.url
+        : `${RAW_BASE}/extensions/${id}/${shot.url.replace(/^\.?\//, '')}`,
+      ...(shot.caption ? { caption: shot.caption } : {}),
+    }));
+  return resolved.length > 0 ? resolved : null;
+}
+
 function thinEntry(entry) {
   return {
     id: entry.id,
@@ -192,6 +248,8 @@ function thinEntry(entry) {
     detailUrl: `e/${entry.id}.json`,
     engines: entry.engines,
     permissions: entry.permissions,
+    contributes: contributesSummary(entry.contributes),
+    screenshots: entry.screenshots,
     // The list shows a size for every extension; only the chosen one costs a
     // second request to learn where those bytes are and what they must hash to.
     size: entry.download.size,
@@ -219,6 +277,7 @@ function detailDocument(entry) {
     engines: entry.engines,
     permissions: entry.permissions,
     contributes: entry.contributes,
+    screenshots: entry.screenshots,
     download: entry.download,
   };
 }
@@ -295,6 +354,7 @@ async function main() {
       engines: manifest.engines ?? {},
       permissions: manifest.permissions ?? [],
       contributes: manifest.contributes ?? {},
+      screenshots: screenshotUrls(id, manifest.screenshots),
       download: {
         url: published.asset.browser_download_url,
         sha256: sha256(bytes),
