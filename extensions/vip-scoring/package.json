@@ -1,0 +1,30 @@
+{
+  "name": "@sarvinbox-ext/vip-scoring",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Learns who actually matters to you from your own reply history, and marks their mail",
+  "license": "MIT",
+  "author": "Sarv",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@sarvinbox/extension-sdk": "^1.0.0",
+    "@types/node": "^20.11.0",
+    "@vitest/coverage-v8": "^1.2.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sarv/SarvInbox-extensions.git",
+    "directory": "extensions/vip-scoring"
+  }
+}
