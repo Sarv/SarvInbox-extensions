@@ -1,12 +1,83 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-22T06:35:33.071Z",
+  "generatedAt": "2026-09-22T06:36:40.627Z",
   "source": "https://github.com/Sarv/SarvInbox-extensions",
   "stats": {
     "stars": 0,
     "watchers": 0
   },
   "extensions": [
+    {
+      "id": "email-summarization",
+      "name": "Thread Summary",
+      "version": "1.0.0",
+      "description": "Summarizes a long mail or a whole thread on demand, with the key points and anything that looks like it needs doing",
+      "author": "Sarv",
+      "license": "SEE LICENSE IN LICENSE",
+      "keywords": [
+        "summary",
+        "ai",
+        "thread",
+        "productivity"
+      ],
+      "homepage": "https://github.com/Sarv/SarvInbox-extensions/tree/main/extensions/email-summarization",
+      "iconUrl": "https://raw.githubusercontent.com/Sarv/SarvInbox-extensions/main/extensions/email-summarization/./icon.svg",
+      "readmeUrl": "https://raw.githubusercontent.com/Sarv/SarvInbox-extensions/main/extensions/email-summarization/README.md",
+      "engines": {
+        "sarvinbox": "^1.1.0"
+      },
+      "permissions": [
+        "email:read",
+        "ai:use",
+        "storage:local",
+        "settings:read"
+      ],
+      "contributes": {
+        "workflows": [
+          {
+            "id": "summarize-email",
+            "name": "Summarize long mail",
+            "description": "Summarizes a long message as it arrives so opening it is instant",
+            "priority": 30,
+            "requiresAI": true,
+            "requiresBody": true
+          }
+        ],
+        "settings": [
+          {
+            "key": "email-summarization.enabled",
+            "type": "boolean",
+            "default": true,
+            "description": "Enable summarization"
+          },
+          {
+            "key": "email-summarization.autoSummarize",
+            "type": "boolean",
+            "default": false,
+            "description": "Summarize long mail as it arrives, instead of only when asked. Costs an AI call per long message."
+          },
+          {
+            "key": "email-summarization.minLength",
+            "type": "number",
+            "default": 1500,
+            "description": "Shortest message worth summarizing, in characters"
+          }
+        ],
+        "events": [
+          "email:body-ready"
+        ]
+      },
+      "download": {
+        "url": "https://github.com/Sarv/SarvInbox-extensions/releases/download/email-summarization-v1.0.0/email-summarization-1.0.0.tgz",
+        "sha256": "e11e3ada2dfa0789f92aaa1edb723c8cc8559234b04ffd2787a5afda4ab73694",
+        "size": 102572,
+        "publishedAt": "2026-09-22T06:36:27Z",
+        "releaseTag": "email-summarization-v1.0.0"
+      },
+      "stats": {
+        "downloads": 0
+      }
+    },
     {
       "id": "otp-code",
       "name": "One-Time Passcodes",
