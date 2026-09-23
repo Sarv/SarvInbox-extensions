@@ -241,6 +241,7 @@ function thinEntry(entry) {
     description: entry.description,
     author: entry.author,
     keywords: entry.keywords,
+    category: entry.category,
     homepage: entry.homepage,
     // Relative to `registry/index.json`, so the detail document and the icon
     // follow the index to whatever host it is served from.
@@ -271,6 +272,7 @@ function detailDocument(entry) {
     id: entry.id,
     version: entry.version,
     license: entry.license,
+    category: entry.category,
     homepage: entry.homepage,
     // Relative to `registry/e/<id>.json`.
     readmeUrl: `../../extensions/${entry.id}/README.md`,
@@ -348,8 +350,13 @@ async function main() {
       author: manifest.author,
       license: manifest.license ?? 'MIT',
       keywords: manifest.keywords ?? [],
+      // Passed through as written; the app folds it onto its own known list of
+      // shelves, so the registry does not need to know what those are.
+      category: manifest.category ?? null,
       homepage: `${REPO_URL}/tree/main/extensions/${id}`,
-      iconUrl: manifest.icon ? `${RAW_BASE}/extensions/${id}/${manifest.icon}` : null,
+      iconUrl: manifest.icon
+        ? `${RAW_BASE}/extensions/${id}/${manifest.icon.replace(/^\.?\//, '')}`
+        : null,
       readmeUrl: `${RAW_BASE}/extensions/${id}/README.md`,
       engines: manifest.engines ?? {},
       permissions: manifest.permissions ?? [],
