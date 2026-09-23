@@ -7,7 +7,7 @@ import {
   decideCard,
   messageKey,
   rememberCard,
-  resolveTarget,
+  resolveTargets,
 } from '../../src/otp-cards';
 import { notificationId } from '../../src/otp-notification';
 
@@ -144,7 +144,7 @@ describe('rememberCard', () => {
   });
 });
 
-describe('resolveTarget', () => {
+describe('resolveTargets', () => {
   function twoAccounts() {
     const index = createCardIndex();
     const first = copy({ id: 'email-1', accountId: 'account-1' });
@@ -155,33 +155,55 @@ describe('resolveTarget', () => {
     return { index, cardId };
   }
 
-  // The request: one card for two mailboxes, so the read lands in the mailbox
-  // the reader is actually sitting in - not whichever account synced first.
-  it('prefers the account the reader is looking at', () => {
+  // The request: one card stands for two mailboxes, and the reader took the
+  // code once - so BOTH copies stop being unread. Returning only the preferred
+  // one left the other account bold forever, since it is never opened.
+  it('returns every copy of the message', () => {
+    const { index, cardId } = twoAccounts();
+
+    expect(resolveTargets(index, { notificationId: cardId, action: 'copy' })).toEqual([
+      { emailId: 'email-1', accountId: 'account-1' },
+      { emailId: 'email-2', accountId: 'account-2' },
+    ]);
+  });
+
+  // The copies are acted on in order, so the row the reader can actually see
+  // has to move first - otherwise a slow account delays the visible one.
+  it('puts the account the reader is looking at first', () => {
     const { index, cardId } = twoAccounts();
 
     expect(
-      resolveTarget(index, { notificationId: cardId, action: 'copy', activeAccountId: 'account-2' })
-    ).toEqual({ emailId: 'email-2', accountId: 'account-2' });
+      resolveTargets(index, { notificationId: cardId, action: 'copy', activeAccountId: 'account-2' })
+    ).toEqual([
+      { emailId: 'email-2', accountId: 'account-2' },
+      { emailId: 'email-1', accountId: 'account-1' },
+    ]);
   });
 
   // A unified view selects no single account; the card's own account is then
-  // the best answer available.
-  it('falls back to the account that raised the card', () => {
+  // the best guess at what is on screen.
+  it('falls back to the account that raised the card for the ordering', () => {
     const { index, cardId } = twoAccounts();
 
     expect(
-      resolveTarget(index, { notificationId: cardId, action: 'copy', accountId: 'account-2' })
-    ).toEqual({ emailId: 'email-2', accountId: 'account-2' });
+      resolveTargets(index, { notificationId: cardId, action: 'copy', accountId: 'account-2' })
+    ).toEqual([
+      { emailId: 'email-2', accountId: 'account-2' },
+      { emailId: 'email-1', accountId: 'account-1' },
+    ]);
   });
 
-  // Reading a third account is not a reason to file nothing.
-  it('files the first copy seen when neither account matches', () => {
+  // Reading a third account is not a reason to reorder anything, and certainly
+  // not a reason to file nothing.
+  it('keeps arrival order when neither account matches', () => {
     const { index, cardId } = twoAccounts();
 
     expect(
-      resolveTarget(index, { notificationId: cardId, action: 'copy', activeAccountId: 'account-9' })
-    ).toEqual({ emailId: 'email-1', accountId: 'account-1' });
+      resolveTargets(index, { notificationId: cardId, action: 'copy', activeAccountId: 'account-9' })
+    ).toEqual([
+      { emailId: 'email-1', accountId: 'account-1' },
+      { emailId: 'email-2', accountId: 'account-2' },
+    ]);
   });
 
   // Regression: the main process can restart while a card is still on screen,
@@ -191,27 +213,25 @@ describe('resolveTarget', () => {
     const index = createCardIndex();
 
     expect(
-      resolveTarget(index, {
+      resolveTargets(index, {
         notificationId: notificationId('email-1'),
         action: 'copy',
         emailId: 'email-2',
       })
-    ).toEqual({ emailId: 'email-2' });
+    ).toEqual([{ emailId: 'email-2' }]);
 
     expect(
-      resolveTarget(index, { notificationId: notificationId('email-1'), action: 'copy' })
-    ).toEqual({ emailId: 'email-1' });
+      resolveTargets(index, { notificationId: notificationId('email-1'), action: 'copy' })
+    ).toEqual([{ emailId: 'email-1' }]);
   });
 
   // Moved here from index.test.ts when resolution moved out of the wiring: a
   // card id this extension did not make resolves to nothing rather than to a
   // guess that would mark an unrelated message read.
-  it('is null for a card id that is not one of ours', () => {
+  it('is empty for a card id that is not one of ours', () => {
     const index = createCardIndex();
 
-    expect(
-      resolveTarget(index, { notificationId: 'other:email-1', action: 'copy' })
-    ).toBeNull();
-    expect(resolveTarget(index, { notificationId: 'code:', action: 'copy' })).toBeNull();
+    expect(resolveTargets(index, { notificationId: 'other:email-1', action: 'copy' })).toEqual([]);
+    expect(resolveTargets(index, { notificationId: 'code:', action: 'copy' })).toEqual([]);
   });
 });

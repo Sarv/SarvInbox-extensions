@@ -16,7 +16,7 @@ and never sits unread.
 | Runs on | Every message except calendar invites, twice: on arrival (subject only) and again once the body is downloaded |
 | Shows | A notification card: sender, the code, a copy button, and a countdown to expiry |
 | Tags | `otp` on any message a code was found in |
-| On copy | Marks that message read — you used the code, so the mail is done |
+| On copy | Marks that message read — every copy of it, if the same mail reached two of your accounts — because you used the code, so the mail is done |
 | Needs | `email:read`, `email:label`, `email:flag`, `storage:local`, `settings:read`, `ui:notify` |
 | Needs no | Network access and no AI — detection is local, offline and free |
 

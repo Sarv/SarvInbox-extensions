@@ -22,7 +22,7 @@ import {
   createCardIndex,
   decideCard,
   rememberCard,
-  resolveTarget,
+  resolveTargets,
 } from './otp-cards';
 import { MIN_CONFIDENCE, detectOtpCode } from './otp-detect';
 import { shouldScanForCode } from './otp-gate';
@@ -131,9 +131,10 @@ export function activate(context: ExtensionContext): void {
    * Only 'copy' acts. A dismissal or an expiry means the reader did NOT take
    * the code, and marking that read would hide a message they may still need.
    *
-   * One card can stand for the same message in two accounts, so WHICH copy
-   * gets filed is a real choice — `resolveTarget` makes it, preferring the
-   * mailbox the reader is looking at.
+   * One card can stand for the same message in two accounts, and EVERY copy is
+   * filed, not just the one on screen: the reader took the code once and will
+   * never open the other mailbox's copy, so anything left unfiled stays bold
+   * for good. `resolveTargets` puts the copy they are looking at first.
    */
   context.ui.onAction(async (action: ExtensionUIAction): Promise<void> => {
     if (action.action !== 'copy') return;
@@ -145,16 +146,29 @@ export function activate(context: ExtensionContext): void {
 
     if (context.settings.get<boolean>(SETTING_MARK_READ_ON_COPY, true) === false) return;
 
-    const target: CardTarget | null = resolveTarget(cards, action);
-    if (!target) return;
+    const targets: CardTarget[] = resolveTargets(cards, action);
+    if (targets.length === 0) return;
 
-    try {
-      await context.mail.markRead(target.emailId);
-      context.log.info(`Marked ${target.emailId} read after its code was copied`);
-    } catch (error) {
-      // The code is already on the clipboard; failing to file the mail is not
-      // worth surfacing to the reader, only worth recording.
-      context.log.warn(`Could not mark ${target.emailId} read: ${String(error)}`);
+    // Each copy settles on its own: one account refusing the change — a revoked
+    // permission, a message deleted on the server — must not leave the copies
+    // after it in the list unfiled.
+    const filed = await Promise.all(
+      targets.map(async (target): Promise<string | null> => {
+        try {
+          await context.mail.markRead(target.emailId);
+          return target.emailId;
+        } catch (error) {
+          // The code is already on the clipboard; failing to file the mail is
+          // not worth surfacing to the reader, only worth recording.
+          context.log.warn(`Could not mark ${target.emailId} read: ${String(error)}`);
+          return null;
+        }
+      })
+    );
+
+    const marked = filed.filter((emailId): emailId is string => emailId !== null);
+    if (marked.length > 0) {
+      context.log.info(`Marked ${marked.join(', ')} read after its code was copied`);
     }
   });
 

@@ -28,7 +28,7 @@ interface Harness {
 function activateHarness(
   settings: Record<string, unknown> = {},
   onNotify?: (notification: ExtensionUINotification) => void,
-  markReadFails?: Error
+  markReadFails?: Error | ((emailId: string) => Error | undefined)
 ): Harness {
   const notified: ExtensionUINotification[] = [];
   const dismissed: string[] = [];
@@ -66,7 +66,11 @@ function activateHarness(
     mail: {
       markRead: async (emailId: string) => {
         mailCalls.push({ method: 'markRead', emailId });
-        if (markReadFails) throw markReadFails;
+        // A function lets one copy of a message fail while its sibling succeeds,
+        // which is the case that must not abandon the remaining copies.
+        const failure =
+          typeof markReadFails === 'function' ? markReadFails(emailId) : markReadFails;
+        if (failure) throw failure;
       },
     },
     log: {
@@ -459,9 +463,11 @@ describe('one message delivered to two accounts', () => {
     expect(harness.notified[0]?.emailId).toBe('email-1');
   });
 
-  // The whole point of folding the two together: the reader is in the second
-  // account, so that is the copy that should stop being unread.
-  it('marks the copy in the account the reader is looking at', async () => {
+  // The whole point of folding the two together: the code was taken once, so
+  // BOTH mailboxes stop being unread. Filing only the copy on screen left the
+  // other account bold for good - nobody opens a code they have already used.
+  // The reader's copy goes first, so the row they can see moves first.
+  it('marks every copy read, reader\'s account first', async () => {
     const harness = activateHarness();
     await bothCopies(harness);
 
@@ -473,12 +479,15 @@ describe('one message delivered to two accounts', () => {
       activeAccountId: 'account-2',
     });
 
-    expect(harness.mailCalls).toEqual([{ method: 'markRead', emailId: 'email-2' }]);
+    expect(harness.mailCalls).toEqual([
+      { method: 'markRead', emailId: 'email-2' },
+      { method: 'markRead', emailId: 'email-1' },
+    ]);
   });
 
-  // No account selected (a unified view) is not a reason to file nothing; the
-  // account that raised the card is the best answer left.
-  it('falls back to the card owner when no account is selected', async () => {
+  // No account selected (a unified view) is not a reason to file only one; the
+  // account that raised the card just goes first.
+  it('falls back to the card owner for the ordering when no account is selected', async () => {
     const harness = activateHarness();
     await bothCopies(harness);
 
@@ -489,7 +498,34 @@ describe('one message delivered to two accounts', () => {
       accountId: 'account-1',
     });
 
-    expect(harness.mailCalls).toEqual([{ method: 'markRead', emailId: 'email-1' }]);
+    expect(harness.mailCalls).toEqual([
+      { method: 'markRead', emailId: 'email-1' },
+      { method: 'markRead', emailId: 'email-2' },
+    ]);
+  });
+
+  // Regression: one copy failing - a revoked permission on that account, or a
+  // message deleted on its server - must not stop the other copy being filed.
+  it('files the remaining copies when one account refuses', async () => {
+    const harness = activateHarness({}, undefined, (emailId) =>
+      emailId === 'email-2' ? new Error('email:flag was not granted') : undefined
+    );
+    await bothCopies(harness);
+
+    await expect(
+      harness.act({
+        notificationId: harness.notified[0]!.id,
+        action: 'copy',
+        emailId: 'email-1',
+        accountId: 'account-1',
+        activeAccountId: 'account-2',
+      })
+    ).resolves.toBeUndefined();
+
+    expect(harness.mailCalls).toEqual([
+      { method: 'markRead', emailId: 'email-2' },
+      { method: 'markRead', emailId: 'email-1' },
+    ]);
   });
 
   // Two genuinely different messages must still get their own card, or a second

@@ -11,8 +11,8 @@
  * the key here: the first copy raises the card, and every later copy is folded
  * into it instead of raising another. What the extra copies contribute is
  * their own email id, remembered against the card, so that when the reader
- * copies the code there is a choice of which mailbox to file — and the one
- * they are looking at can win.
+ * copies the code every mailbox holding that message gets filed — starting
+ * with the one they are looking at.
  *
  * Pure data structures over plain objects: no host, no clock, no I/O, so every
  * rule above is unit testable on its own.
@@ -153,36 +153,40 @@ function evictOldest(index: CardIndex): void {
 }
 
 /**
- * Which copy of the message a reader action refers to.
+ * Every copy of the message a reader action refers to, reader's copy first.
  *
- * In order of preference:
- *  1. the copy in the account the reader is looking at — a single card can
- *     stand for two mailboxes, and the one on screen is the one they mean;
- *  2. the copy in the account that raised the card, when the reader is
- *     somewhere else entirely (a unified view, or a third account);
- *  3. the first copy seen, so an unrecognised account still files something.
+ * All of them are returned, not the best one: the same message delivered to two
+ * accounts is two rows in two mailboxes, and filing only the one on screen
+ * leaves the other bold forever — the reader never opens it, because they
+ * already took the code.
+ *
+ * Order still carries the old preference, because acting on the copies in turn
+ * means the one the reader can see should move first:
+ *  1. the copy in the account the reader is looking at;
+ *  2. the copy in the account that raised the card;
+ *  3. the rest, in arrival order.
  *
  * Nothing remembered at all means the process restarted while a card was still
  * on screen. That click is still worth honouring, so it falls back to what the
  * host echoed back and then to the card id, which encodes the email it was
- * raised for. Returns null only for an id this extension did not make.
+ * raised for — one copy, the only one still knowable. Returns an empty list
+ * only for an id this extension did not make.
  */
-export function resolveTarget(index: CardIndex, action: ExtensionUIAction): CardTarget | null {
+export function resolveTargets(index: CardIndex, action: ExtensionUIAction): CardTarget[] {
   const targets = index.byCardId.get(action.notificationId)?.targets ?? [];
 
   if (targets.length > 0) {
-    const active = action.activeAccountId
-      ? targets.find((target) => target.accountId === action.activeAccountId)
-      : undefined;
-    if (active) return active;
-
-    const owner = action.accountId
-      ? targets.find((target) => target.accountId === action.accountId)
-      : undefined;
-    return owner ?? targets[0];
+    return [...targets].sort((left, right) => readerRank(left, action) - readerRank(right, action));
   }
 
   const emailId = action.emailId || emailIdFromNotificationId(action.notificationId);
-  if (!emailId) return null;
-  return { emailId, ...(action.accountId ? { accountId: action.accountId } : {}) };
+  if (!emailId) return [];
+  return [{ emailId, ...(action.accountId ? { accountId: action.accountId } : {}) }];
+}
+
+/** Lower sorts first. Equal ranks keep arrival order, since the sort is stable. */
+function readerRank(target: CardTarget, action: ExtensionUIAction): number {
+  if (action.activeAccountId && target.accountId === action.activeAccountId) return 0;
+  if (action.accountId && target.accountId === action.accountId) return 1;
+  return 2;
 }
