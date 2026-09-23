@@ -9,7 +9,7 @@ import type {
 import { describe, it, expect } from 'vitest';
 
 
-import { activate, emailIdForAction, resolveMinConfidence } from '../../src/index';
+import { activate, resolveMinConfidence } from '../../src/index';
 import { MIN_CONFIDENCE } from '../../src/otp-detect';
 
 const NOW_SECONDS = Math.floor(Date.now() / 1000);
@@ -317,15 +317,105 @@ describe('marking read on copy', () => {
   });
 });
 
-describe('emailIdForAction', () => {
-  it('prefers the id the host sent over the one in the card id', () => {
-    expect(
-      emailIdForAction({ notificationId: 'code:email-1', action: 'copy', emailId: 'email-2' })
-    ).toBe('email-2');
+describe('one message delivered to two accounts', () => {
+  const MESSAGE_ID = '<code-081678@sender.example>';
+
+  async function bothCopies(harness: Harness): Promise<void> {
+    await harness.workflow.process(
+      makeEmail({ id: 'email-1', accountId: 'account-1', messageId: MESSAGE_ID }),
+      NO_CONTEXT
+    );
+    await harness.workflow.process(
+      makeEmail({ id: 'email-2', accountId: 'account-2', messageId: MESSAGE_ID }),
+      NO_CONTEXT
+    );
+  }
+
+  // Regression: the same address read through two IMAP servers delivered one
+  // message twice, and the card id was built from the email id - so the reader
+  // got two identical code cards stacked up, countdowns seconds out of step.
+  it('raises one card, not two', async () => {
+    const harness = activateHarness();
+
+    await bothCopies(harness);
+
+    expect(harness.notified).toHaveLength(1);
+    expect(harness.notified[0]?.emailId).toBe('email-1');
   });
 
-  it('is null for a card id that is not one of ours', () => {
-    expect(emailIdForAction({ notificationId: 'other:email-1', action: 'copy' })).toBeNull();
-    expect(emailIdForAction({ notificationId: 'code:', action: 'copy' })).toBeNull();
+  // The whole point of folding the two together: the reader is in the second
+  // account, so that is the copy that should stop being unread.
+  it('marks the copy in the account the reader is looking at', async () => {
+    const harness = activateHarness();
+    await bothCopies(harness);
+
+    await harness.act({
+      notificationId: harness.notified[0]!.id,
+      action: 'copy',
+      emailId: 'email-1',
+      accountId: 'account-1',
+      activeAccountId: 'account-2',
+    });
+
+    expect(harness.mailCalls).toEqual([{ method: 'markRead', emailId: 'email-2' }]);
+  });
+
+  // No account selected (a unified view) is not a reason to file nothing; the
+  // account that raised the card is the best answer left.
+  it('falls back to the card owner when no account is selected', async () => {
+    const harness = activateHarness();
+    await bothCopies(harness);
+
+    await harness.act({
+      notificationId: harness.notified[0]!.id,
+      action: 'copy',
+      emailId: 'email-1',
+      accountId: 'account-1',
+    });
+
+    expect(harness.mailCalls).toEqual([{ method: 'markRead', emailId: 'email-1' }]);
+  });
+
+  // Two genuinely different messages must still get their own card, or a second
+  // code arriving while the first is on screen would never be shown.
+  it('still raises a second card for a different message', async () => {
+    const harness = activateHarness();
+
+    await harness.workflow.process(
+      makeEmail({ id: 'email-1', messageId: '<one@sender.example>' }),
+      NO_CONTEXT
+    );
+    await harness.workflow.process(
+      makeEmail({
+        id: 'email-2',
+        messageId: '<two@sender.example>',
+        cleanBody: 'Your verification code is 112233.',
+      }),
+      NO_CONTEXT
+    );
+
+    expect(harness.notified).toHaveLength(2);
+  });
+
+  // Regression: the accounts do not sync in step. A backlogged copy that is too
+  // old to interrupt anyone for must not claim the card and then silence the
+  // copy that arrives fresh a minute later.
+  it('lets a fresh copy card a message whose stale copy arrived first', async () => {
+    const harness = activateHarness();
+    const stale = NOW_SECONDS - 60 * 60;
+
+    await harness.workflow.process(
+      makeEmail({ id: 'email-1', messageId: MESSAGE_ID, date: stale, receivedDate: stale }),
+      NO_CONTEXT
+    );
+    expect(harness.notified).toHaveLength(0);
+
+    await harness.workflow.process(
+      makeEmail({ id: 'email-2', accountId: 'account-2', messageId: MESSAGE_ID }),
+      NO_CONTEXT
+    );
+
+    expect(harness.notified).toHaveLength(1);
+    expect(harness.notified[0]?.emailId).toBe('email-2');
   });
 });

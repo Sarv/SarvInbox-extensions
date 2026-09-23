@@ -83,6 +83,20 @@ export function emailIdFromNotificationId(id: string): string | null {
   return emailId || null;
 }
 
+/** Optional overrides for {@link buildOtpNotification}. */
+export interface OtpNotificationOptions {
+  /**
+   * The id to raise the card under.
+   *
+   * Defaults to this email's own card id. It is passed explicitly when the
+   * same message has already been carded from another account, so the second
+   * copy folds into the first card rather than stacking beside it.
+   */
+  cardId?: string;
+  /** Epoch ms detection happened, for the expiry. Defaults to now. */
+  now?: number;
+}
+
 /**
  * Build the card. `expiresAt` is absolute UTC epoch ms so the renderer can run
  * its countdown without knowing when detection happened.
@@ -90,10 +104,11 @@ export function emailIdFromNotificationId(id: string): string | null {
 export function buildOtpNotification(
   email: Pick<EmailRecord, 'id' | 'accountId' | 'fromName' | 'fromAddress'>,
   detection: OtpDetection,
-  now: number = Date.now()
+  options: OtpNotificationOptions = {}
 ): ExtensionUINotification {
+  const now = options.now ?? Date.now();
   return {
-    id: notificationId(email.id),
+    id: options.cardId ?? notificationId(email.id),
     title: 'Verification code',
     body: senderLabel(email),
     fields: [{ label: 'Code', value: detection.code, copyable: true, emphasis: true }],

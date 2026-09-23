@@ -105,28 +105,28 @@ describe('buildOtpNotification', () => {
   // with the same id REPLACES the card. A random id stacks a second card on
   // the body-stage re-run.
   it('derives a stable id from the email', () => {
-    expect(buildOtpNotification(email, detection, NOW).id).toBe(notificationId('email-1'));
-    expect(buildOtpNotification(email, detection, NOW + 5_000).id).toBe(notificationId('email-1'));
+    expect(buildOtpNotification(email, detection, { now: NOW }).id).toBe(notificationId('email-1'));
+    expect(buildOtpNotification(email, detection, { now: NOW + 5_000 }).id).toBe(notificationId('email-1'));
   });
 
   // Regression: expiry is sent as an absolute UTC instant so the renderer can
   // run the countdown without knowing when detection happened. A relative
   // duration here would restart the countdown on every re-render.
   it('sends an absolute expiry instant', () => {
-    expect(buildOtpNotification(email, detection, NOW).expiresAt).toBe(NOW + detection.expiresInMs);
+    expect(buildOtpNotification(email, detection, { now: NOW }).expiresAt).toBe(NOW + detection.expiresInMs);
   });
 
   // Regression: the copy button is the point of the card. Losing `copyable`
   // sends the user back into the email to select six digits by hand.
   it('marks the code copyable and emphasised', () => {
-    const [field] = buildOtpNotification(email, detection, NOW).fields ?? [];
+    const [field] = buildOtpNotification(email, detection, { now: NOW }).fields ?? [];
     expect(field).toEqual({ label: 'Code', value: '483920', copyable: true, emphasis: true });
   });
 
   // Regression: clicking the card opens the mail, which needs both ids on a
   // multi-account setup — otherwise it opens the wrong account's message.
   it('carries the email and account ids', () => {
-    const card = buildOtpNotification(email, detection, NOW);
+    const card = buildOtpNotification(email, detection, { now: NOW });
     expect(card.emailId).toBe('email-1');
     expect(card.accountId).toBe('account-1');
   });
@@ -134,7 +134,7 @@ describe('buildOtpNotification', () => {
   // Regression: a single-account record has no accountId; emitting the key as
   // undefined fails the host's sanitizer shape check.
   it('omits the account id when the email has none', () => {
-    const card = buildOtpNotification({ ...email, accountId: undefined }, detection, NOW);
+    const card = buildOtpNotification({ ...email, accountId: undefined }, detection, { now: NOW });
     expect('accountId' in card).toBe(false);
   });
 });

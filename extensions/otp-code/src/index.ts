@@ -17,13 +17,15 @@ import type {
   ExtensionWorkflowResult,
 } from '@sarvinbox/extension-sdk';
 
-import { MIN_CONFIDENCE, detectOtpCode } from './otp-detect';
 import {
-  OTP_TAG,
-  buildOtpNotification,
-  emailIdFromNotificationId,
-  isFreshEnoughToNotify,
-} from './otp-notification';
+  type CardTarget,
+  createCardIndex,
+  decideCard,
+  rememberCard,
+  resolveTarget,
+} from './otp-cards';
+import { MIN_CONFIDENCE, detectOtpCode } from './otp-detect';
+import { OTP_TAG, buildOtpNotification, isFreshEnoughToNotify } from './otp-notification';
 
 const WORKFLOW_ID = 'detect-code';
 
@@ -32,27 +34,6 @@ const SETTING_TAG_EMAILS = 'otp-code.tagEmails';
 const SETTING_MIN_CONFIDENCE = 'otp-code.minConfidence';
 const SETTING_MARK_READ_ON_COPY = 'otp-code.markReadOnCopy';
 
-/**
- * Codes already shown, so the body-stage re-run does not restart a countdown
- * that is already ticking on screen.
- *
- * The workflow runs twice per message — once on arrival (headers only) and
- * again once the body has been fetched — because a code in the subject should
- * surface without waiting for a download. Bounded because this map lives for
- * the life of the process; the cap is far above any plausible burst of codes
- * and eviction is oldest-first.
- */
-const MAX_TRACKED_EMAILS = 500;
-
-function rememberShown(shown: Map<string, string>, emailId: string, code: string): void {
-  shown.set(emailId, code);
-  while (shown.size > MAX_TRACKED_EMAILS) {
-    const oldest = shown.keys().next();
-    if (oldest.done) break;
-    shown.delete(oldest.value);
-  }
-}
-
 /** Resolve the confidence floor, ignoring a setting that is missing or out of range. */
 export function resolveMinConfidence(configured: unknown): number {
   if (typeof configured !== 'number' || !Number.isFinite(configured)) return MIN_CONFIDENCE;
@@ -60,19 +41,9 @@ export function resolveMinConfidence(configured: unknown): number {
   return configured;
 }
 
-/**
- * Which email a reader action refers to, preferring what the host reported.
- *
- * The host echoes the card's `emailId` back, but a card raised by an older
- * build may not carry one; the id itself always encodes the email, so that is
- * the fallback rather than giving up on the click.
- */
-export function emailIdForAction(action: ExtensionUIAction): string | null {
-  return action.emailId || emailIdFromNotificationId(action.notificationId);
-}
 
 export function activate(context: ExtensionContext): void {
-  const shown = new Map<string, string>();
+  const cards = createCardIndex();
 
   /**
    * Copying the code is the reader saying they used it — so the mail has done
@@ -83,21 +54,25 @@ export function activate(context: ExtensionContext): void {
    *
    * Only 'copy' acts. A dismissal or an expiry means the reader did NOT take
    * the code, and marking that read would hide a message they may still need.
+   *
+   * One card can stand for the same message in two accounts, so WHICH copy
+   * gets filed is a real choice — `resolveTarget` makes it, preferring the
+   * mailbox the reader is looking at.
    */
   context.ui.onAction(async (action: ExtensionUIAction): Promise<void> => {
     if (action.action !== 'copy') return;
     if (context.settings.get<boolean>(SETTING_MARK_READ_ON_COPY, true) === false) return;
 
-    const emailId = emailIdForAction(action);
-    if (!emailId) return;
+    const target: CardTarget | null = resolveTarget(cards, action);
+    if (!target) return;
 
     try {
-      await context.mail.markRead(emailId);
-      context.log.info(`Marked ${emailId} read after its code was copied`);
+      await context.mail.markRead(target.emailId);
+      context.log.info(`Marked ${target.emailId} read after its code was copied`);
     } catch (error) {
       // The code is already on the clipboard; failing to file the mail is not
       // worth surfacing to the reader, only worth recording.
-      context.log.warn(`Could not mark ${emailId} read: ${String(error)}`);
+      context.log.warn(`Could not mark ${target.emailId} read: ${String(error)}`);
     }
   });
 
@@ -124,10 +99,14 @@ export function activate(context: ExtensionContext): void {
         const floor = resolveMinConfidence(context.settings.get<number>(SETTING_MIN_CONFIDENCE));
         if (detection.confidence < floor) return { success: true };
 
-        const alreadyShown = shown.get(email.id);
-        if (alreadyShown !== detection.code && isFreshEnoughToNotify(email)) {
-          context.ui.notify(buildOtpNotification(email, detection));
-          rememberShown(shown, email.id, detection.code);
+        // Stale mail is left out of the index entirely: a backlogged copy must
+        // not claim the card and then silence a copy that arrives fresh.
+        if (isFreshEnoughToNotify(email)) {
+          const decision = decideCard(cards, email, detection.code);
+          if (decision.show) {
+            context.ui.notify(buildOtpNotification(email, detection, { cardId: decision.cardId }));
+          }
+          rememberCard(cards, email, decision.cardId, detection.code);
         }
 
         const tagEmails = context.settings.get<boolean>(SETTING_TAG_EMAILS, true) !== false;
