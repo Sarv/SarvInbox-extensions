@@ -1,7 +1,7 @@
 {
   "id": "otp-code",
   "name": "One-Time Passcodes",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Spots verification codes as they arrive and shows them with a copy button and a countdown, so you never open the mail to read six digits.",
   "author": "Sarv",
   "repository": "https://github.com/Sarv/SarvInbox-extensions",
