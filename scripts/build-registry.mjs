@@ -145,11 +145,20 @@ async function manifestInArchive(id, bytes) {
  */
 function indexReleases(releases) {
   const byExtension = new Map();
+  // A release whose archive never arrived. `gh release create` has been seen to
+  // exit 0 having attached nothing, and there is nothing this builder can say
+  // about a release it cannot download — so those tags are collected and
+  // reported rather than dropped, which is how otp-code-v1.2.0 was published to
+  // silence while the catalogue went on serving 1.1.0.
+  const withoutArchive = [];
   for (const release of releases) {
     const parsed = parseReleaseTag(release.tag_name ?? '');
     if (!parsed) continue;
     const asset = (release.assets ?? []).find((candidate) => candidate.name.endsWith('.tgz'));
-    if (!asset) continue;
+    if (!asset) {
+      withoutArchive.push(release.tag_name);
+      continue;
+    }
 
     const downloads = (release.assets ?? [])
       .filter((candidate) => candidate.name.endsWith('.tgz'))
@@ -163,7 +172,25 @@ function indexReleases(releases) {
       existing.downloads = entry.downloads;
     }
   }
-  return byExtension;
+  return { byExtension, withoutArchive };
+}
+
+/**
+ * Saying nothing about an archive-less release would publish a catalogue that
+ * silently disagrees with the releases page. The tag this run was triggered by
+ * is fatal — that release is the entire point of the run — while older debris
+ * only warns, because failing on it would block every future release until
+ * someone went back and cleaned it up.
+ */
+function reportReleasesWithoutArchive(tags) {
+  if (tags.length === 0) return;
+  process.stderr.write(
+    `WARN: no .tgz asset on ${tags.join(', ')} - cannot be listed in the registry\n`
+  );
+  const publishing = process.env.GITHUB_REF_NAME;
+  if (publishing && tags.includes(publishing)) {
+    throw new Error(`${publishing} has no .tgz asset, so the registry cannot list it`);
+  }
 }
 
 /**
@@ -317,7 +344,8 @@ async function writeServedRegistry(registry) {
 async function main() {
   const dryRun = process.argv.includes('--dry-run');
   const ids = await listExtensionIds();
-  const releases = indexReleases(await fetchAllReleases());
+  const { byExtension: releases, withoutArchive } = indexReleases(await fetchAllReleases());
+  reportReleasesWithoutArchive(withoutArchive);
   const repository = await githubJson(API_BASE).catch(() => null);
 
   const extensions = [];
