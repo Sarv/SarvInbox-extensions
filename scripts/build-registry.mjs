@@ -77,6 +77,27 @@ async function githubJson(url) {
   return response.json();
 }
 
+/**
+ * The assets a release actually carries.
+ *
+ * The releases LIST embeds an `assets` array, and that array has been seen
+ * empty on releases whose assets are present, `uploaded` and downloadable: on
+ * 2026-09-23 two of eight releases reported none through the list while
+ * `/releases/<id>/assets` returned both for each. That is how otp-code-v1.2.0
+ * was published to silence - the catalogue went on serving 1.1.0 with every job
+ * green, because a builder that believes the list has no way to tell an
+ * unpublished archive from an unreported one. The dedicated endpoint is the
+ * authority, so anything the list leaves empty is asked for directly.
+ *
+ * A failure here is left to propagate: not knowing what a release carries is
+ * the one thing this builder must never paper over.
+ */
+async function resolveAssets(release) {
+  if ((release.assets ?? []).length > 0) return release;
+  const assets = await githubJson(`${API_BASE}/releases/${release.id}/assets?per_page=100`);
+  return { ...release, assets };
+}
+
 async function fetchAllReleases() {
   const releases = [];
   for (let page = 1; page <= 10; page += 1) {
@@ -84,7 +105,8 @@ async function fetchAllReleases() {
     releases.push(...batch);
     if (batch.length < 100) break;
   }
-  return releases.filter((release) => !release.draft);
+  const published = releases.filter((release) => !release.draft);
+  return Promise.all(published.map(resolveAssets));
 }
 
 async function download(url) {
@@ -145,11 +167,10 @@ async function manifestInArchive(id, bytes) {
  */
 function indexReleases(releases) {
   const byExtension = new Map();
-  // A release whose archive never arrived. `gh release create` has been seen to
-  // exit 0 having attached nothing, and there is nothing this builder can say
-  // about a release it cannot download — so those tags are collected and
-  // reported rather than dropped, which is how otp-code-v1.2.0 was published to
-  // silence while the catalogue went on serving 1.1.0.
+  // A release that carries no archive even after its assets were resolved from
+  // the dedicated endpoint. There is nothing this builder can say about a
+  // release it cannot download, so those tags are collected and reported rather
+  // than quietly dropped.
   const withoutArchive = [];
   for (const release of releases) {
     const parsed = parseReleaseTag(release.tag_name ?? '');
