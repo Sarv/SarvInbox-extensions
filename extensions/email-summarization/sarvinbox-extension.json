@@ -1,14 +1,25 @@
 {
   "id": "email-summarization",
   "name": "Thread Summary",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Summarizes a long mail or a whole thread on demand, with the key points and anything that looks like it needs doing",
   "author": "Sarv",
   "repository": "https://github.com/Sarv/SarvInbox-extensions",
   "license": "SEE LICENSE IN LICENSE",
   "main": "./dist/index.js",
-  "icon": "./icon.svg",
+  "icon": "icon.svg",
   "keywords": ["summary", "ai", "thread", "productivity"],
+  "category": "ai",
+  "screenshots": [
+    {
+      "url": "screenshot-summarize.svg",
+      "caption": "A Summarize Conversation button above any long thread"
+    },
+    {
+      "url": "screenshot-summary.svg",
+      "caption": "The summary panel: what was decided, the key points, and who was involved"
+    }
+  ],
   "engines": {
     "sarvinbox": "^1.1.0"
   },

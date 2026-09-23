@@ -1,6 +1,6 @@
 {
   "name": "@sarvinbox-ext/vip-scoring",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Learns who actually matters to you from your own reply history, and marks their mail",
   "license": "MIT",

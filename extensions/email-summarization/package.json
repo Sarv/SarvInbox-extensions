@@ -1,6 +1,6 @@
 {
   "name": "@sarvinbox-ext/email-summarization",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Summarizes a long mail or a whole thread on demand, and caches the result so opening it again is instant",
   "license": "MIT",

@@ -1,7 +1,7 @@
 {
   "id": "otp-code",
   "name": "One-Time Passcodes",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Spots verification codes as they arrive and shows them with a copy button and a countdown, so you never open the mail to read six digits.",
   "author": "Sarv",
   "repository": "https://github.com/Sarv/SarvInbox-extensions",
@@ -9,6 +9,17 @@
   "main": "./dist/index.js",
   "icon": "icon.svg",
   "keywords": ["otp", "2fa", "verification", "security"],
+  "category": "security",
+  "screenshots": [
+    {
+      "url": "screenshot-card.svg",
+      "caption": "The code appears in the corner the moment the mail lands, with a copy button and a live countdown"
+    },
+    {
+      "url": "screenshot-copy-marks-read.svg",
+      "caption": "Copying the code marks that message read, in whichever mailbox you are looking at"
+    }
+  ],
   "engines": {
     "sarvinbox": "^1.1.0"
   },

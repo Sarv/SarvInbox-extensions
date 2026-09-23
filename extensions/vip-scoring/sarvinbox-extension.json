@@ -1,7 +1,7 @@
 {
   "id": "vip-scoring",
   "name": "VIP Senders",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Learns who actually matters to you from your own mailbox and tags their mail vip as it arrives. No AI, no network, no list to maintain by hand.",
   "author": "Sarv",
   "repository": "https://github.com/Sarv/SarvInbox-extensions",
@@ -9,6 +9,17 @@
   "main": "./dist/index.js",
   "icon": "icon.svg",
   "keywords": ["vip", "priority", "sender", "relationship"],
+  "category": "organisation",
+  "screenshots": [
+    {
+      "url": "screenshot-list.svg",
+      "caption": "Mail from people you actually reply to carries a vip tag in the list"
+    },
+    {
+      "url": "screenshot-reading.svg",
+      "caption": "The same tag sits under the subject in the reading pane, and behaves like any other label"
+    }
+  ],
   "engines": {
     "sarvinbox": "^1.1.0"
   },
