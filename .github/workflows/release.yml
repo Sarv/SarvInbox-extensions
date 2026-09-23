@@ -76,9 +76,19 @@ jobs:
         with:
           ref: main
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: pnpm
+
+      # The builder unpacks each released archive to read the manifest that was
+      # actually shipped, so it needs the repository's own dependencies, not
+      # just a Node runtime. Without this the job dies on `Cannot find package
+      # 'tar'` after the release has already been published, which leaves a real
+      # release that the catalogue never learns about.
+      - run: pnpm install --frozen-lockfile
 
       # Rebuilds the registry from the published releases and commits it back,
       # so the app sees the new version without anyone editing a file by hand.
