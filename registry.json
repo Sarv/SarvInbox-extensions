@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-23T09:34:52.725Z",
+  "generatedAt": "2026-09-23T10:04:45.655Z",
   "source": "https://github.com/Sarv/SarvInbox-extensions",
   "stats": {
     "stars": 1,
@@ -100,7 +100,7 @@
         "releaseTag": "email-summarization-v1.1.0"
       },
       "stats": {
-        "downloads": 14
+        "downloads": 17
       }
     },
     {
@@ -195,9 +195,9 @@
       ],
       "download": {
         "url": "https://github.com/Sarv/SarvInbox-extensions/releases/download/otp-code-v1.2.0/otp-code-1.2.0.tgz",
-        "sha256": "1600df0ac4a29c08925630eafee127bf59b6556ff3fd1b63867f46544f38a7d3",
-        "size": 8136,
-        "publishedAt": "2026-09-23T08:33:35Z",
+        "sha256": "90a07c1eaa3ecad3d29f99f50cb702bb525cf8d86015613807f3f10bbf941226",
+        "size": 8133,
+        "publishedAt": "2026-09-23T10:04:25Z",
         "releaseTag": "otp-code-v1.2.0"
       },
       "stats": {
@@ -315,7 +315,7 @@
         "releaseTag": "receipts-tracker-v1.0.0"
       },
       "stats": {
-        "downloads": 0
+        "downloads": 4
       }
     },
     {
@@ -398,7 +398,7 @@
         "releaseTag": "vip-scoring-v1.1.0"
       },
       "stats": {
-        "downloads": 17
+        "downloads": 20
       }
     }
   ]
