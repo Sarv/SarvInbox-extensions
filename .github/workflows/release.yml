@@ -68,13 +68,14 @@ jobs:
             "${{ steps.pack.outputs.archive }}" \
             "${{ steps.pack.outputs.checksum_file }}"
 
-      # `gh release create` creates the release, uploads the assets and then
-      # publishes, and on 2026-09-23 it did the first and last of those and
-      # exited 0 anyway: otp-code-v1.2.0 went out empty, and because the
-      # registry builder can only describe a release it can download, the
-      # catalogue went on serving 1.1.0 with every job green. Nothing here is
-      # allowed to be the only thing that noticed, so the release is read back
-      # and the upload retried before the job is allowed to pass.
+      # A release the archive never reached is worth catching here rather than
+      # one job later, so the upload is read back before the job passes.
+      #
+      # Read back through `/releases/<id>/assets`, never the `assets` array
+      # embedded in a release object: that array has been seen empty on releases
+      # whose assets are present and downloadable (2026-09-23, two of eight),
+      # which would make this step fail a perfectly good release and then retry
+      # an upload that is already there.
       - name: Verify the assets reached the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -83,12 +84,13 @@ jobs:
         run: |
           archive="$(basename "$ARCHIVE")"
           checksum="$(basename "$CHECKSUM")"
+          release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" --jq '.id')"
           attempt=1
           while true; do
             # Only `uploaded` counts: a failed upload can leave the asset
             # listed in another state, which is present without being fetchable.
-            uploaded="$(gh release view "$GITHUB_REF_NAME" --json assets \
-              --jq '[.assets[] | select(.state == "uploaded") | .name] | join(" ")')"
+            uploaded="$(gh api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" \
+              --jq '[.[] | select(.state == "uploaded") | .name] | join(" ")')"
             missing=""
             for name in "$archive" "$checksum"; do
               case " $uploaded " in
