@@ -1,0 +1,94 @@
+{
+  "id": "receipts-tracker",
+  "name": "Receipts & Subscriptions",
+  "version": "1.0.0",
+  "description": "Finds receipts, invoices and renewal notices in your mail, keeps a running picture of what you spend and what you are subscribed to, and warns you before a trial converts.",
+  "author": "Sarv",
+  "repository": "https://github.com/Sarv/SarvInbox-extensions",
+  "license": "SEE LICENSE IN LICENSE",
+  "main": "./dist/index.js",
+  "icon": "icon.svg",
+  "keywords": ["receipts", "subscriptions", "spending", "invoices", "trials", "renewals"],
+  "category": "office",
+  "screenshots": [
+    {
+      "url": "screenshot-panel.svg",
+      "caption": "The panel beside your mail: this receipt, what is due soon, and what the recurring charges add up to"
+    },
+    {
+      "url": "screenshot-renewal.svg",
+      "caption": "The warning that earns its place - a free trial about to become a monthly charge, while you can still stop it"
+    }
+  ],
+  "engines": {
+    "sarvinbox": "^1.1.0"
+  },
+  "permissions": [
+    "email:read",
+    "email:label",
+    "storage:local",
+    "settings:read",
+    "ui:notify",
+    "ui:panel"
+  ],
+  "contributes": {
+    "workflows": [
+      {
+        "id": "track-receipts",
+        "name": "Track receipts and subscriptions",
+        "description": "Records what a receipt was for, and when the next charge is due",
+        "priority": 40,
+        "requiresBody": true,
+        "enabledByDefault": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "receipts",
+        "title": "Receipts",
+        "entry": "panel/index.html",
+        "surface": "sidebar",
+        "icon": "icon.svg",
+        "width": 340,
+        "autoOpen": false
+      }
+    ],
+    "settings": [
+      {
+        "key": "receipts-tracker.enabled",
+        "type": "boolean",
+        "default": true,
+        "description": "Track receipts and subscriptions as mail arrives"
+      },
+      {
+        "key": "receipts-tracker.tagEmails",
+        "type": "boolean",
+        "default": true,
+        "description": "Also tag receipts 'receipt', and recurring ones 'subscription'"
+      },
+      {
+        "key": "receipts-tracker.notifyRenewals",
+        "type": "boolean",
+        "default": true,
+        "description": "Warn before a subscription renews or a trial converts"
+      },
+      {
+        "key": "receipts-tracker.renewalLeadDays",
+        "type": "number",
+        "default": 3,
+        "minimum": 0,
+        "maximum": 30,
+        "description": "How many days ahead of a charge to warn you"
+      },
+      {
+        "key": "receipts-tracker.minConfidence",
+        "type": "number",
+        "default": 0.5,
+        "minimum": 0,
+        "maximum": 1,
+        "description": "How certain the detector must be before recording a receipt"
+      }
+    ],
+    "events": ["email:body-ready", "sync:completed"]
+  }
+}

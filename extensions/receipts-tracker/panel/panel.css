@@ -1,0 +1,401 @@
+/*
+ * Panel styling.
+ *
+ * The panel is served from its own origin and cannot reach the app's
+ * stylesheets, so the design-system tokens it needs are declared here. They
+ * are copies of `sarv_theme/design-system.css` and must stay copies — the
+ * values below are the only thing keeping this page looking like the app it
+ * sits inside. Nothing past this block may use a literal colour, radius,
+ * spacing or font size; everything below reads a token.
+ *
+ * Only the tokens this page actually uses are carried over, so the drift
+ * surface is as small as it can be.
+ */
+:root {
+  --color-slate-50: #f7f8fb;
+  --color-slate-200: #e6e9f1;
+  --color-slate-300: #d8dde9;
+  --color-slate-500: #8b94ac;
+  --color-slate-600: #6b7691;
+  --color-slate-900: #0b1530;
+
+  --color-success-50: #e3f5ec;
+  --color-success-500: #10936a;
+  --color-success-700: #0a6d4f;
+
+  --color-warning-50: #fef6e0;
+  --color-warning-700: #8a6708;
+
+  --bg: var(--color-slate-50);
+  --surface: #ffffff;
+  --surface-2: var(--color-slate-50);
+  --border: var(--color-slate-200);
+  --border-strong: var(--color-slate-300);
+  --ink: var(--color-slate-900);
+  --muted: var(--color-slate-600);
+  --muted-2: var(--color-slate-500);
+
+  --brand: #3069b0;
+  --brand-deep: #1f457a;
+  --brand-soft: #eaf2fa;
+
+  --accent: #e56910;
+  --accent-soft: #fef1e6;
+  --accent-ink: #944209;
+
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-base: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 18px;
+
+  --lh-tight: 1.2;
+  --lh-snug: 1.35;
+  --lh-base: 1.5;
+
+  --tracking-tight: -0.02em;
+
+  --fw-medium: 500;
+  --fw-semi: 600;
+  --fw-bold: 700;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(13, 22, 56, 0.06), 0 1px 0 rgba(13, 22, 56, 0.04);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 120ms;
+}
+
+/*
+ * Dark theme.
+ *
+ * The app marks dark with a `.dark` class, which a panel in its own origin
+ * cannot see — and the host does not push `theme-changed` yet. So the class is
+ * applied here from whatever signal the panel CAN get (see panel.js), and the
+ * same block answers the OS preference directly for the case where nothing
+ * tells us at all. One rule set, two ways in.
+ */
+.dark,
+:root.dark {
+  --bg: #0b0f1a;
+  --surface: #131826;
+  --surface-2: #181e30;
+  --border: #232838;
+  --border-strong: #2e3447;
+  --ink: #f7f8fb;
+  --muted: #9aa3bc;
+  --muted-2: #6b7691;
+
+  --brand: #5b92d2;
+  --brand-deep: #84b0e0;
+  --brand-soft: rgba(91, 146, 210, 0.14);
+
+  --accent: #ff8533;
+  --accent-soft: rgba(255, 133, 51, 0.22);
+  --accent-ink: #ffcc9e;
+
+  --color-success-50: rgba(16, 147, 106, 0.14);
+  --color-success-500: #34c29a;
+  --color-success-700: #6be3bb;
+
+  --color-warning-50: rgba(212, 160, 23, 0.14);
+  --color-warning-700: #f4dd8c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
+  letter-spacing: var(--tracking-tight);
+  -webkit-font-smoothing: antialiased;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.state {
+  margin: 0;
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.state strong {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--ink);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semi);
+}
+
+/* --- Sections ----------------------------------------------------------- */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.section-title {
+  margin: 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.section-note {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+/* --- Cards -------------------------------------------------------------- */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-current {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    background var(--t-fast) var(--ease-out);
+}
+
+.row:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.row-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.row-side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.name {
+  font-weight: var(--fw-semi);
+  font-size: var(--fs-base);
+  line-height: var(--lh-snug);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.amount {
+  font-family: var(--font-mono);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semi);
+  white-space: nowrap;
+}
+
+.amount-lg {
+  font-size: var(--fs-xl);
+  line-height: var(--lh-tight);
+}
+
+.amount-sub {
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* --- Badges ------------------------------------------------------------- */
+
+.badge {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semi);
+  line-height: var(--space-4);
+  white-space: nowrap;
+}
+
+.badge-purchase {
+  background: var(--brand-soft);
+  color: var(--brand-deep);
+}
+
+.badge-subscription {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.badge-refund {
+  background: var(--color-success-50);
+  color: var(--color-success-700);
+}
+
+.badge-trial {
+  background: var(--color-warning-50);
+  color: var(--color-warning-700);
+}
+
+.badge-soon {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+/* --- Totals ------------------------------------------------------------- */
+
+.total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.total-label {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.total-value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+}
+
+/* --- Spend bars --------------------------------------------------------- */
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.bar-label {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.bar-track {
+  height: var(--space-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  min-width: var(--space-1);
+  background: var(--brand);
+  border-radius: var(--r-pill);
+}
+
+.bar-value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

@@ -64,6 +64,7 @@ the mirror too, with nothing to reconfigure.
 | [`otp-code`](extensions/otp-code) | Spots a verification code as it arrives and puts it on screen with a copy button and a live countdown to expiry, so you never open the mail to read six digits | `email:read` `email:label` `storage:local` `settings:read` `ui:notify` |
 | [`vip-scoring`](extensions/vip-scoring) | Learns who you actually correspond with — who you reply to, how fast, how often — and tags the mail that matters | `email:read` `email:label` `storage:local` `settings:read` |
 | [`email-summarization`](extensions/email-summarization) | Summarises a long thread on demand, and caches the result so re-opening it is free | `email:read` `ai:use` `storage:local` `settings:read` |
+| [`receipts-tracker`](extensions/receipts-tracker) | Reads receipts, invoices and renewal notices as they arrive, keeps a panel of what you spend and what you subscribe to, and warns you before a free trial turns into a charge | `email:read` `email:label` `storage:local` `settings:read` `ui:notify` `ui:panel` |
 
 ## Installing
 

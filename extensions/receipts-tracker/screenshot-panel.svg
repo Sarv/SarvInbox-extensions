@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-label="The Receipts panel beside an open message, showing this receipt, what is due soon and the monthly recurring total">
+  <title>The Receipts panel, beside the mail</title>
+  <defs>
+    <style>
+      .ui { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .fg { fill: #0b1530; }
+      .muted { fill: #6b7691; }
+      .faint { fill: #8b94ac; }
+      .cap { font-size: 10; letter-spacing: 0.08em; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="640" height="400" rx="10" fill="#ffffff"/>
+  <rect x="0.5" y="0.5" width="639" height="399" rx="10" fill="none" stroke="#e2e8f0"/>
+
+  <!-- Folder rail -->
+  <rect x="1" y="1" width="99" height="398" fill="#f8fafc"/>
+  <line x1="100" y1="1" x2="100" y2="399" stroke="#e2e8f0"/>
+  <rect x="14" y="24" width="60" height="9" rx="4.5" fill="#cbd5e1"/>
+  <rect x="10" y="48" width="80" height="26" rx="6" fill="#e2e8f0"/>
+  <rect x="20" y="57" width="40" height="8" rx="4" fill="#94a3b8"/>
+  <rect x="20" y="90" width="54" height="8" rx="4" fill="#cbd5e1"/>
+  <rect x="20" y="116" width="44" height="8" rx="4" fill="#cbd5e1"/>
+  <rect x="20" y="142" width="50" height="8" rx="4" fill="#cbd5e1"/>
+
+  <!-- The open message. The two pills are the tags the extension applied. -->
+  <rect x="116" y="26" width="150" height="11" rx="5.5" fill="#94a3b8"/>
+  <rect x="116" y="50" width="100" height="8" rx="4" fill="#cbd5e1"/>
+  <rect x="116" y="68" width="50" height="17" rx="8.5" fill="#eaf2fa"/>
+  <text class="ui" x="141" y="80" font-size="10" font-weight="600" fill="#1f457a" text-anchor="middle">receipt</text>
+  <rect x="172" y="68" width="76" height="17" rx="8.5" fill="#fef1e6"/>
+  <text class="ui" x="210" y="80" font-size="10" font-weight="600" fill="#944209" text-anchor="middle">subscription</text>
+  <rect x="116" y="104" width="160" height="8" rx="4" fill="#e6e9f1"/>
+  <rect x="116" y="122" width="140" height="8" rx="4" fill="#e6e9f1"/>
+  <rect x="116" y="140" width="164" height="8" rx="4" fill="#e6e9f1"/>
+  <rect x="116" y="158" width="120" height="8" rx="4" fill="#e6e9f1"/>
+  <rect x="116" y="188" width="72" height="9" rx="4.5" fill="#cbd5e1"/>
+  <rect x="116" y="212" width="150" height="8" rx="4" fill="#e6e9f1"/>
+  <rect x="116" y="230" width="132" height="8" rx="4" fill="#e6e9f1"/>
+
+  <!-- The panel, at the width it actually opens to -->
+  <rect x="300" y="1" width="339" height="398" fill="#f7f8fb"/>
+  <line x1="300" y1="1" x2="300" y2="399" stroke="#e2e8f0"/>
+
+  <rect x="316" y="16" width="16" height="16" rx="4" fill="#0a6d4f"/>
+  <g transform="translate(317.5 17.5) scale(0.56)">
+    <path d="M6 2.75h12a.75.75 0 0 1 .75.75v17l-2.5-1.5-2.5 1.5-2.5-1.5-2.5 1.5-2.5-1.5-1.5.9V3.5A.75.75 0 0 1 6 2.75Z" fill="#ffffff"/>
+  </g>
+  <text class="ui fg" x="340" y="29" font-size="13" font-weight="600">Receipts</text>
+  <line x1="300" y1="44" x2="639" y2="44" stroke="#e6e9f1"/>
+
+  <text class="ui faint cap" x="316" y="66">THIS MESSAGE</text>
+  <rect x="316" y="76" width="307" height="70" rx="12" fill="#eaf2fa" stroke="#3069b0"/>
+  <text class="ui fg" x="332" y="102" font-size="14" font-weight="600">Netflix</text>
+  <text class="ui muted" x="332" y="119" font-size="11">Monthly &#183; 12 Sep 2026</text>
+  <text class="ui muted" x="332" y="134" font-size="11">Next charge 12 Oct 2026</text>
+  <text class="mono fg" x="607" y="106" font-size="18" font-weight="600" text-anchor="end">&#8377;649</text>
+  <rect x="521" y="116" width="86" height="17" rx="8.5" fill="#fef1e6"/>
+  <text class="ui" x="564" y="128" font-size="10" font-weight="600" fill="#944209" text-anchor="middle">Subscription</text>
+
+  <text class="ui faint cap" x="316" y="172">COMING UP</text>
+  <text class="ui muted" x="607" y="172" font-size="11" text-anchor="end">2</text>
+  <rect x="316" y="182" width="307" height="48" rx="12" fill="#ffffff" stroke="#e6e9f1"/>
+  <text class="ui fg" x="332" y="204" font-size="13.5" font-weight="600">Figma</text>
+  <text class="ui muted" x="332" y="220" font-size="11">Trial ends 26 Sep</text>
+  <text class="mono fg" x="607" y="205" font-size="13" font-weight="600" text-anchor="end">&#8377;1,499</text>
+  <rect x="545" y="212" width="62" height="17" rx="8.5" fill="#fef1e6"/>
+  <text class="ui" x="576" y="224" font-size="10" font-weight="600" fill="#944209" text-anchor="middle">Act now</text>
+
+  <rect x="316" y="238" width="307" height="48" rx="12" fill="#ffffff" stroke="#e6e9f1"/>
+  <text class="ui fg" x="332" y="260" font-size="13.5" font-weight="600">Spotify</text>
+  <text class="ui muted" x="332" y="276" font-size="11">Renews 1 Oct</text>
+  <text class="mono fg" x="607" y="267" font-size="13" font-weight="600" text-anchor="end">&#8377;119</text>
+
+  <text class="ui faint cap" x="316" y="312">SUBSCRIPTIONS</text>
+  <text class="ui muted" x="607" y="312" font-size="11" text-anchor="end">5</text>
+  <rect x="316" y="322" width="307" height="46" rx="12" fill="#ffffff" stroke="#e6e9f1"/>
+  <text class="ui muted" x="332" y="350" font-size="11.5">Recurring, per month</text>
+  <text class="mono fg" x="607" y="351" font-size="16" font-weight="600" text-anchor="end">&#8377;2,431</text>
+
+  <text class="ui muted" x="316" y="386" font-size="10.5">Every figure is read from mail already on your machine.</text>
+</svg>

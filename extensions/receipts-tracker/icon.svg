@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Receipts &amp; Subscriptions">
+  <title>Receipts &amp; Subscriptions</title>
+  <!-- A standalone logo: drawn in <img>, where `currentColor` has nothing to
+       inherit from, so every colour here is literal on purpose. Green is the
+       panel's own success family, and it is what reads as money beside the
+       blue and amber badges already in the catalogue. -->
+  <defs>
+    <linearGradient id="receiptBadge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#0a6d4f"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#receiptBadge)"/>
+  <!-- The torn bottom edge is the whole recognisability of the shape at 14px,
+       where the ruled lines below have already blurred into grey. -->
+  <g transform="translate(6.6 7) scale(2.1)">
+    <path d="M6 2.75h12a.75.75 0 0 1 .75.75v17l-2.5-1.5-2.5 1.5-2.5-1.5-2.5 1.5-2.5-1.5-1.5.9V3.5A.75.75 0 0 1 6 2.75Z" fill="#ffffff"/>
+    <g stroke="#0a6d4f" stroke-width="1.5" stroke-linecap="round">
+      <path d="M8.5 7.5h8"/>
+      <path d="M8.5 11h8"/>
+      <path d="M8.5 14.5h4.5"/>
+    </g>
+  </g>
+</svg>
