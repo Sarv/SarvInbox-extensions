@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-22T12:59:04.587Z",
+  "generatedAt": "2026-09-23T05:29:45.966Z",
   "source": "https://github.com/Sarv/SarvInbox-extensions",
   "stats": {
     "stars": 0,
@@ -10,7 +10,7 @@
     {
       "id": "email-summarization",
       "name": "Thread Summary",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "description": "Summarizes a long mail or a whole thread on demand, with the key points and anything that looks like it needs doing",
       "author": "Sarv",
       "license": "SEE LICENSE IN LICENSE",
@@ -20,7 +20,7 @@
         "thread",
         "productivity"
       ],
-      "category": null,
+      "category": "ai",
       "homepage": "https://github.com/Sarv/SarvInbox-extensions/tree/main/extensions/email-summarization",
       "iconUrl": "https://raw.githubusercontent.com/Sarv/SarvInbox-extensions/main/extensions/email-summarization/icon.svg",
       "readmeUrl": "https://raw.githubusercontent.com/Sarv/SarvInbox-extensions/main/extensions/email-summarization/README.md",
@@ -34,6 +34,20 @@
         "settings:read"
       ],
       "contributes": {
+        "capabilities": [
+          {
+            "id": "thread.summarize",
+            "export": "summarizeThread",
+            "priority": 10,
+            "description": "Summarize a whole thread on demand"
+          },
+          {
+            "id": "email.summarize",
+            "export": "summarizeEmail",
+            "priority": 10,
+            "description": "Summarize a single message on demand"
+          }
+        ],
         "workflows": [
           {
             "id": "summarize-email",
@@ -68,22 +82,31 @@
           "email:body-ready"
         ]
       },
-      "screenshots": null,
+      "screenshots": [
+        {
+          "url": "https://raw.githubusercontent.com/Sarv/SarvInbox-extensions/main/extensions/email-summarization/screenshot-summarize.svg",
+          "caption": "A Summarize Conversation button above any long thread"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/Sarv/SarvInbox-extensions/main/extensions/email-summarization/screenshot-summary.svg",
+          "caption": "The summary panel: what was decided, the key points, and who was involved"
+        }
+      ],
       "download": {
-        "url": "https://github.com/Sarv/SarvInbox-extensions/releases/download/email-summarization-v1.0.0/email-summarization-1.0.0.tgz",
-        "sha256": "e11e3ada2dfa0789f92aaa1edb723c8cc8559234b04ffd2787a5afda4ab73694",
-        "size": 102572,
-        "publishedAt": "2026-09-22T06:36:27Z",
-        "releaseTag": "email-summarization-v1.0.0"
+        "url": "https://github.com/Sarv/SarvInbox-extensions/releases/download/email-summarization-v1.1.0/email-summarization-1.1.0.tgz",
+        "sha256": "3e3805c8e17c9d9841f59230546b31c52cfa8e61dc728c9fc42992da3e6addd5",
+        "size": 102867,
+        "publishedAt": "2026-09-23T05:28:39Z",
+        "releaseTag": "email-summarization-v1.1.0"
       },
       "stats": {
-        "downloads": 7
+        "downloads": 8
       }
     },
     {
       "id": "otp-code",
       "name": "One-Time Passcodes",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "description": "Spots verification codes as they arrive and shows them with a copy button and a countdown, so you never open the mail to read six digits.",
       "author": "Sarv",
       "license": "SEE LICENSE IN LICENSE",
@@ -93,7 +116,7 @@
         "verification",
         "security"
       ],
-      "category": null,
+      "category": "security",
       "homepage": "https://github.com/Sarv/SarvInbox-extensions/tree/main/extensions/otp-code",
       "iconUrl": "https://raw.githubusercontent.com/Sarv/SarvInbox-extensions/main/extensions/otp-code/icon.svg",
       "readmeUrl": "https://raw.githubusercontent.com/Sarv/SarvInbox-extensions/main/extensions/otp-code/README.md",
@@ -103,6 +126,7 @@
       "permissions": [
         "email:read",
         "email:label",
+        "email:flag",
         "storage:local",
         "settings:read",
         "ui:notify"
@@ -132,6 +156,12 @@
             "description": "Also tag the email 'otp' so codes stay findable afterwards"
           },
           {
+            "key": "otp-code.markReadOnCopy",
+            "type": "boolean",
+            "default": true,
+            "description": "Mark the email read once you copy its code"
+          },
+          {
             "key": "otp-code.minConfidence",
             "type": "number",
             "default": 0.55,
@@ -145,22 +175,31 @@
           "email:body-ready"
         ]
       },
-      "screenshots": null,
+      "screenshots": [
+        {
+          "url": "https://raw.githubusercontent.com/Sarv/SarvInbox-extensions/main/extensions/otp-code/screenshot-card.svg",
+          "caption": "The code appears in the corner the moment the mail lands, with a copy button and a live countdown"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/Sarv/SarvInbox-extensions/main/extensions/otp-code/screenshot-copy-marks-read.svg",
+          "caption": "Copying the code marks that message read, in whichever mailbox you are looking at"
+        }
+      ],
       "download": {
-        "url": "https://github.com/Sarv/SarvInbox-extensions/releases/download/otp-code-v1.0.0/otp-code-1.0.0.tgz",
-        "sha256": "455a25797fae56bcc746225b4fd319068d41644fea0d20094594cdc1ce8b5213",
-        "size": 6520,
-        "publishedAt": "2026-09-22T06:31:40Z",
-        "releaseTag": "otp-code-v1.0.0"
+        "url": "https://github.com/Sarv/SarvInbox-extensions/releases/download/otp-code-v1.1.0/otp-code-1.1.0.tgz",
+        "sha256": "2c4c5243665d8a415177a981a90cb7bc595fef5ddf46b9edd6875f6afd3e9ef7",
+        "size": 7763,
+        "publishedAt": "2026-09-23T05:27:05Z",
+        "releaseTag": "otp-code-v1.1.0"
       },
       "stats": {
-        "downloads": 12
+        "downloads": 13
       }
     },
     {
       "id": "vip-scoring",
       "name": "VIP Senders",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "description": "Learns who actually matters to you from your own mailbox and tags their mail vip as it arrives. No AI, no network, no list to maintain by hand.",
       "author": "Sarv",
       "license": "SEE LICENSE IN LICENSE",
@@ -170,7 +209,7 @@
         "sender",
         "relationship"
       ],
-      "category": null,
+      "category": "organisation",
       "homepage": "https://github.com/Sarv/SarvInbox-extensions/tree/main/extensions/vip-scoring",
       "iconUrl": "https://raw.githubusercontent.com/Sarv/SarvInbox-extensions/main/extensions/vip-scoring/icon.svg",
       "readmeUrl": "https://raw.githubusercontent.com/Sarv/SarvInbox-extensions/main/extensions/vip-scoring/README.md",
@@ -219,16 +258,25 @@
           "email:synced"
         ]
       },
-      "screenshots": null,
+      "screenshots": [
+        {
+          "url": "https://raw.githubusercontent.com/Sarv/SarvInbox-extensions/main/extensions/vip-scoring/screenshot-list.svg",
+          "caption": "Mail from people you actually reply to carries a vip tag in the list"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/Sarv/SarvInbox-extensions/main/extensions/vip-scoring/screenshot-reading.svg",
+          "caption": "The same tag sits under the subject in the reading pane, and behaves like any other label"
+        }
+      ],
       "download": {
-        "url": "https://github.com/Sarv/SarvInbox-extensions/releases/download/vip-scoring-v1.0.0/vip-scoring-1.0.0.tgz",
-        "sha256": "d13168272cd2e5f50310cfdbbf8456fdf6581f81bf9a40801d40172232d6f95a",
-        "size": 7582,
-        "publishedAt": "2026-09-22T06:35:21Z",
-        "releaseTag": "vip-scoring-v1.0.0"
+        "url": "https://github.com/Sarv/SarvInbox-extensions/releases/download/vip-scoring-v1.1.0/vip-scoring-1.1.0.tgz",
+        "sha256": "590c802fa3100b3d708f6d400ae6303a8fec16fa9b4d5d341cbf9ee7c40a5a86",
+        "size": 7965,
+        "publishedAt": "2026-09-23T05:28:40Z",
+        "releaseTag": "vip-scoring-v1.1.0"
       },
       "stats": {
-        "downloads": 9
+        "downloads": 10
       }
     }
   ]
