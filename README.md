@@ -124,7 +124,8 @@ my-extension/
 ├── package.json
 ├── tsconfig.json
 ├── tsup.config.ts
-├── icon.svg                   # optional, shown in the Extensions panel
+├── icon.svg                   # optional, your logo in Browse and the Extensions panel
+├── screenshot-*.svg           # optional, pictures of it running, shown before installing
 ├── README.md
 ├── src/
 │   └── index.ts               # must export activate()
@@ -205,6 +206,10 @@ what it contributes. `package.json` is only for your build.
   "main": "./dist/index.js",
   "icon": "icon.svg",
   "keywords": ["productivity"],
+  "category": "productivity",
+  "screenshots": [
+    { "url": "screenshot-panel.svg", "caption": "Where it shows up, and what it looks like doing its job" }
+  ],
   "engines": {
     "sarvinbox": "^1.1.0"
   },
@@ -246,7 +251,20 @@ what it contributes. `package.json` is only for your build.
 | `contributes.workflows` | no | Declared here AND registered in `activate` (see below) |
 | `contributes.settings` | no | Rendered in the Extensions panel |
 | `contributes.events` | no | Pipeline events you subscribe to. **Note this lives inside `contributes`**, not at the top level |
-| `icon`, `keywords`, `homepage`, `repository`, `license` | no | Metadata for the Browse tab |
+| `icon` | no | Your logo, a path inside the folder. Drawn in an `<img>`, so give it literal colours - a `currentColor` stroke has nothing to inherit and comes out black. Check it at 32px. Ships inside the archive too, so an installed extension has an icon offline |
+| `category` | no | One shelf for the Browse list. The app folds it onto `productivity`, `security`, `organisation`, `communication`, `office`, `ai`, `tools`, `other` (common synonyms included); anything else becomes `other`. Grants nothing, restricts nothing |
+| `screenshots` | no | `[{ url, caption }]`, paths inside the folder. Shown on the extension's page before installing - answer *what will I see, and where?* Read over https rather than shipped, so they cost an installed reader nothing |
+| `keywords`, `homepage`, `repository`, `license` | no | Metadata for the Browse tab |
+
+`icon` and `screenshots` paths are expanded by the registry into absolute URLs
+on a host the app will load from — the catalogue draws them for extensions
+nobody has installed yet, so an arbitrary host would be a request made on the
+reader's behalf. Write a path, not a URL.
+
+The registry describes the **released archive**, not your working tree: a new
+`category` or `screenshots` list reaches Browse with the release that contains
+it. The image files themselves are read from the repository, so redrawing an
+icon needs no release — renaming one does.
 
 ### 3. The entry point
 
