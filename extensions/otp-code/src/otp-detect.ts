@@ -15,6 +15,14 @@
  * reason (see MAX_SCAN_CHARS).
  */
 
+import {
+  failsAuthentication,
+  hasDialInContext,
+  isTransactionalSender,
+  looksLikeDateStamp,
+  maskNonCodeSpans,
+} from './otp-context';
+
 /** How much of the body is scanned. A code that appears past this is not a code
  *  the user was meant to find quickly — and an unbounded scan is a main-thread
  *  cost paid on every message. */
@@ -100,6 +108,12 @@ export interface OtpDetection {
 export interface OtpInput {
   subject?: string | null;
   body?: string | null;
+  /** Sender, for the transactional-mailbox bonus. Optional: the detector works
+   *  without it, just with slightly less to go on. */
+  fromAddress?: string | null;
+  /** The host's stored SPF/DKIM/DMARC verdict, as JSON. An outright failure
+   *  makes a passcode card a phishing surface, so it costs confidence. */
+  authStatus?: string | null;
 }
 
 interface Candidate {
@@ -203,23 +217,43 @@ function collectCandidates(text: string): Candidate[] {
   return candidates;
 }
 
-function scoreCandidate(
-  candidate: Candidate,
-  lowered: string,
-  inSubject: boolean
-): number {
-  const distance = keywordDistance(lowered, candidate.index);
+/** Everything about the message, rather than the candidate, that moves the score. */
+interface ScoreContext {
+  /** The (masked) text the candidate's index points into, lowercased. */
+  lowered: string;
+  inSubject: boolean;
+  /** The same code appears in BOTH the subject and the body. Providers repeat
+   *  the code precisely so it survives a preview pane; a number that happens to
+   *  appear twice in two different roles is far rarer. */
+  redundant: boolean;
+  transactionalSender: boolean;
+  authFailed: boolean;
+}
+
+function scoreCandidate(candidate: Candidate, context: ScoreContext): number {
+  // A number in a "join by phone" block is a way to reach a meeting. The
+  // keyword that would otherwise justify it is Google's own "PIN:", printed one
+  // character from the dial-in number.
+  if (hasDialInContext(context.lowered, candidate.index)) return 0;
+
+  const distance = keywordDistance(context.lowered, candidate.index);
   // No keyword anywhere near it: this is just a number in an email.
   if (distance === null) return 0;
 
   let score = 0.35;
   score += 0.35 * (1 - distance / KEYWORD_WINDOW);
-  if (inSubject) score += 0.15;
+  if (context.inSubject) score += 0.15;
   if (candidate.grouped) score += 0.1;
   if (candidate.code.length === 6) score += 0.15;
   else if (candidate.code.length >= 4 && candidate.code.length <= 8) score += 0.05;
   if (candidate.allDigits) score += 0.05;
+  if (context.redundant) score += 0.1;
+  if (context.transactionalSender) score += 0.08;
   if (looksLikeYear(candidate.code)) score -= 0.4;
+  if (looksLikeDateStamp(candidate.code)) score -= 0.4;
+  // Not a veto: a spoofed message can still be scored, it just has to be a much
+  // clearer code before a card stands for it.
+  if (context.authFailed) score -= 0.35;
 
   return Math.max(0, Math.min(1, score));
 }
@@ -243,21 +277,44 @@ export function parseStatedExpiry(text: string): number | null {
  * before the body has been fetched.
  */
 export function detectOtpCode(input: OtpInput): OtpDetection | null {
-  const subject = (input.subject ?? '').slice(0, MAX_SCAN_CHARS);
-  const body = (input.body ?? '').slice(0, MAX_SCAN_CHARS);
+  // Masked BEFORE anything is measured, so no candidate is ever collected from
+  // a phone number, a link or a tracking parameter, and no keyword inside one
+  // can vouch for a candidate outside it. Length is preserved, so every
+  // index-based rule below still points where it did.
+  const subject = maskNonCodeSpans((input.subject ?? '').slice(0, MAX_SCAN_CHARS));
+  const body = maskNonCodeSpans((input.body ?? '').slice(0, MAX_SCAN_CHARS));
 
   const sources: Array<{ text: string; source: 'subject' | 'body' }> = [
     { text: subject, source: 'subject' },
     { text: body, source: 'body' },
   ];
 
+  const transactionalSender = isTransactionalSender(input.fromAddress);
+  const authFailed = failsAuthentication(input.authStatus);
+
+  // Collected for both sources up front: whether a code is repeated across the
+  // subject and the body is a property of the pair, not of either one alone.
+  const collected = sources.map(({ text, source }) => ({
+    source,
+    lowered: text.toLowerCase(),
+    candidates: text ? collectCandidates(text) : [],
+  }));
+  const codesPerSource = collected.map((entry) => new Set(entry.candidates.map((c) => c.code)));
+  const repeated = new Set(
+    [...codesPerSource[0]].filter((code) => codesPerSource[1].has(code))
+  );
+
   let best: { detection: OtpDetection } | null = null;
 
-  for (const { text, source } of sources) {
-    if (!text) continue;
-    const lowered = text.toLowerCase();
-    for (const candidate of collectCandidates(text)) {
-      const confidence = scoreCandidate(candidate, lowered, source === 'subject');
+  for (const { source, lowered, candidates } of collected) {
+    for (const candidate of candidates) {
+      const confidence = scoreCandidate(candidate, {
+        lowered,
+        inSubject: source === 'subject',
+        redundant: repeated.has(candidate.code),
+        transactionalSender,
+        authFailed,
+      });
       if (confidence < MIN_CONFIDENCE) continue;
       if (best && best.detection.confidence >= confidence) continue;
       best = {

@@ -25,6 +25,7 @@ import {
   resolveTarget,
 } from './otp-cards';
 import { MIN_CONFIDENCE, detectOtpCode } from './otp-detect';
+import { shouldScanForCode } from './otp-gate';
 import { OTP_TAG, buildOtpNotification, isFreshEnoughToNotify } from './otp-notification';
 
 const WORKFLOW_ID = 'detect-code';
@@ -168,13 +169,19 @@ export function activate(context: ExtensionContext): void {
 
     shouldProcess: (email: EmailRecord): boolean => {
       if (context.settings.get<boolean>(SETTING_ENABLED, true) === false) return false;
-      // Nothing to read yet and nothing in the subject is cheap to rule out.
-      return Boolean(email.subject || email.cleanBody);
+      // Nothing to read yet, and genres that cannot hold a passcode however
+      // code-shaped their numbers are — see `otp-gate.ts`.
+      return shouldScanForCode(email);
     },
 
     process: async (email: EmailRecord): Promise<ExtensionWorkflowResult> => {
       try {
-        const detection = detectOtpCode({ subject: email.subject, body: email.cleanBody });
+        const detection = detectOtpCode({
+          subject: email.subject,
+          body: email.cleanBody,
+          fromAddress: email.fromAddress,
+          authStatus: email.authStatus,
+        });
         if (!detection) return { success: true };
 
         const floor = resolveMinConfidence(context.settings.get<number>(SETTING_MIN_CONFIDENCE));

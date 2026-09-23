@@ -163,3 +163,147 @@ describe('parseStatedExpiry', () => {
     expect(parseStatedExpiry('expires in 0 minutes')).toBeNull();
   });
 });
+
+/**
+ * Context signals folded into the score: the spans a code cannot be in, who
+ * sent it, and whether the message is who it claims to be.
+ */
+describe('detectOtpCode — context signals', () => {
+  // The REPORTED BUG, end to end and in the sender's own words. A Google
+  // Calendar invite surfaced a card for 631606 at 0.92 confidence, taken from
+  // the middle of the dial-in number +1 631-606-4341 because Google's own
+  // "PIN:" sat one character away. The user opened the message and there was no
+  // such code anywhere in it. If this goes red, that card is back.
+  it('finds no code in a Google Calendar invite', () => {
+    const body = [
+      'When',
+      'Wednesday Sep 23, 2026 - 4:30pm - 5pm (India Standard Time - Kolkata)',
+      'Guests',
+      'Mahima Kumawat - organizer',
+      'Join by phone',
+      '(US) +1 631-606-4341 PIN: 192405006',
+      'More phone numbers',
+    ].join('\n');
+
+    expect(detectOtpCode({ subject: 'Invitation: Amit Kumar - R2', body })).toBeNull();
+  });
+
+  // Regression: rejecting only the grouped `631-606` match is NOT enough — the
+  // plain-digit pass then picks up `4341` from the same phone number, still
+  // beside "PIN:", and scores it around 0.75. The whole span has to go.
+  it('takes no candidate from any part of a dial-in number', () => {
+    const detection = detectOtpCode({ body: 'Join by phone (US) +1 631-606-4341 PIN: 192405006' });
+    expect(detection).toBeNull();
+  });
+
+  // Regression: a tracking or verification link is full of code-shaped digits
+  // and usually sits right beside the word "verify" or "code".
+  it('takes no code from a URL or its query string', () => {
+    expect(
+      detectOtpCode({ body: 'Verify your email: https://acme.example/confirm?code=837261&uid=9012' })
+    ).toBeNull();
+  });
+
+  // Regression: the masking must not cost a real code. This is the commonest
+  // shape of OTP mail there is and it has a link right beside it.
+  it('still finds the code in a message that also carries a link', () => {
+    const detection = detectOtpCode({
+      body: 'Your verification code is 483920. Or open https://acme.example/v?t=778899 to confirm.',
+    });
+    expect(detection?.code).toBe('483920');
+  });
+
+  // Regression: a phone number in the FOOTER of a genuine passcode mail — which
+  // is most of them — must not suppress the code above it.
+  it('finds the code in passcode mail whose footer carries a support number', () => {
+    const detection = detectOtpCode({
+      body: 'Your login code is 774120.\n\nQuestions? Call us on +1 631-606-4341.',
+    });
+    expect(detection?.code).toBe('774120');
+  });
+
+  // A code repeated in the subject and the body is a provider making sure it
+  // survives the preview pane — a strong signal, and the repetition must not
+  // instead confuse the pick.
+  it('scores a code repeated in subject and body above the same code seen once', () => {
+    const repeated = detectOtpCode({
+      subject: 'Your code is 552310',
+      body: 'Your verification code is 552310.',
+    });
+    const once = detectOtpCode({ body: 'Your verification code is 552310.' });
+
+    expect(repeated?.code).toBe('552310');
+    expect(repeated!.confidence).toBeGreaterThan(once!.confidence);
+  });
+
+  // A transactional mailbox is a weak positive. It must MOVE the score without
+  // ever being required — gating on it would drop codes from ordinary senders.
+  it('credits a transactional sender without requiring one', () => {
+    const noreply = detectOtpCode({
+      body: 'Your verification code is 483920.',
+      fromAddress: 'no-reply@acme.example',
+    });
+    const person = detectOtpCode({
+      body: 'Your verification code is 483920.',
+      fromAddress: 'mahima@sarv.com',
+    });
+
+    expect(noreply!.confidence).toBeGreaterThan(person!.confidence);
+    expect(person?.code).toBe('483920');
+  });
+
+  // Regression: a passcode card is the highest-trust surface in the app. A
+  // message whose sending domain is being impersonated must clear a much higher
+  // bar before one stands for it, or the extension amplifies phishing.
+  it('raises no card for a single-mention code in a spoofed message', () => {
+    const body = 'Your verification code is 483920.';
+    const failed = JSON.stringify({ spf: 'fail', dkim: 'fail', dmarc: 'fail', overall: 'fail' });
+
+    expect(detectOtpCode({ body })?.code).toBe('483920');
+    expect(detectOtpCode({ body, authStatus: failed })).toBeNull();
+  });
+
+  // Not a veto, though: a code stated clearly enough — repeated in the subject,
+  // the way real providers send them — still surfaces. A spoofed message has to
+  // clear a much higher bar, not an impossible one, because SPF/DKIM verdicts
+  // are wrong often enough that a hard block would hide real codes.
+  it('still surfaces an emphatically-stated code from a spoofed message', () => {
+    const detection = detectOtpCode({
+      subject: 'Your code is 483920',
+      body: 'Your verification code is 483920.',
+      authStatus: JSON.stringify({ overall: 'fail' }),
+    });
+
+    expect(detection?.code).toBe('483920');
+  });
+
+  // Regression: mail crossing a forwarder or a mailing list reports `none` or
+  // `partial` as a matter of course. Penalising those would suppress cards for
+  // perfectly good codes — the failure users actually notice and report.
+  it.each(['none', 'partial', 'pass'])(
+    'does not penalise an overall verdict of %s',
+    (overall) => {
+      const detection = detectOtpCode({
+        body: 'Your verification code is 483920.',
+        authStatus: JSON.stringify({ overall }),
+      });
+      const clean = detectOtpCode({ body: 'Your verification code is 483920.' });
+
+      expect(detection!.confidence).toBe(clean!.confidence);
+    }
+  );
+
+  // A malformed verdict must read as "no opinion" rather than throw inside a
+  // workflow that is holding up the mail pipeline.
+  it('ignores an unparseable authStatus', () => {
+    expect(
+      detectOtpCode({ body: 'Your verification code is 483920.', authStatus: '{not json' })?.code
+    ).toBe('483920');
+  });
+
+  // Regression: an 8-digit date next to an order confirmation's "code" wording
+  // is inside the passcode length range and would otherwise score.
+  it('does not offer a date stamp as a code', () => {
+    expect(detectOtpCode({ body: 'Order code: 20260923 shipped' })).toBeNull();
+  });
+});
