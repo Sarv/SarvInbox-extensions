@@ -24,7 +24,15 @@ import { EXTENSIONS_DIR, MANIFEST_NAME, REPO_ROOT, readManifest, sha256 } from '
 
 const run = promisify(execFile);
 
-/** Files copied into the archive, in the layout the app expects to find them. */
+/**
+ * Files copied into the archive, in the layout the app expects to find them.
+ *
+ * Screenshots are deliberately absent: they are a before-you-install
+ * question, the catalogue reads them straight from the repo over https,
+ * and shipping them would put megabytes of pictures on the disk of every
+ * reader who already decided to install. The icon does ship, because an
+ * installed extension still has to show one with no network.
+ */
 const SHIPPED = [
   { from: MANIFEST_NAME, required: true },
   { from: 'dist/index.js', required: true },
