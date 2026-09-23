@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-label="Mail from important senders carries a vip tag in the message list">
+  <title>The vip tag in the message list</title>
+  <defs>
+    <style>
+      .ui { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+      .fg { fill: #020817; }
+      .muted { fill: #64748b; }
+    </style>
+  </defs>
+
+  <rect width="640" height="400" rx="10" fill="#ffffff"/>
+  <rect x="0.5" y="0.5" width="639" height="399" rx="10" fill="none" stroke="#e2e8f0"/>
+
+  <!-- Folder rail -->
+  <rect x="1" y="1" width="150" height="398" fill="#f8fafc"/>
+  <line x1="151" y1="1" x2="151" y2="399" stroke="#e2e8f0"/>
+  <rect x="12" y="44" width="127" height="28" rx="6" fill="#e2e8f0"/>
+  <rect x="24" y="54" width="46" height="8" rx="4" fill="#94a3b8"/>
+  <rect x="24" y="88" width="66" height="8" rx="4" fill="#cbd5e1"/>
+  <rect x="24" y="118" width="52" height="8" rx="4" fill="#cbd5e1"/>
+  <rect x="24" y="148" width="60" height="8" rx="4" fill="#cbd5e1"/>
+
+  <text class="ui muted" x="168" y="32" font-size="11">Inbox</text>
+
+  <!-- Row 1: vip -->
+  <rect x="168" y="48" width="448" height="58" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+  <circle cx="186" cy="77" r="4" fill="#3b82f6"/>
+  <text class="ui fg" x="202" y="72" font-size="13" font-weight="600">Priya Menon</text>
+  <rect x="300" y="62" width="34" height="17" rx="8.5" fill="#f59e0b"/>
+  <text class="ui" x="317" y="74.5" font-size="10.5" font-weight="700" fill="#1c1917" text-anchor="middle">vip</text>
+  <text class="ui fg" x="202" y="91" font-size="12" font-weight="600">Re: contract wording for Thursday</text>
+  <text class="ui muted" x="600" y="72" font-size="11" text-anchor="end">10:12</text>
+
+  <!-- Row 2: plain -->
+  <rect x="168" y="114" width="448" height="58" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+  <text class="ui muted" x="202" y="138" font-size="13">Weekly Digest</text>
+  <text class="ui muted" x="202" y="157" font-size="12">What happened in your industry</text>
+  <text class="ui muted" x="600" y="138" font-size="11" text-anchor="end">09:40</text>
+
+  <!-- Row 3: vip -->
+  <rect x="168" y="180" width="448" height="58" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+  <circle cx="186" cy="209" r="4" fill="#3b82f6"/>
+  <text class="ui fg" x="202" y="204" font-size="13" font-weight="600">Daniel Okafor</text>
+  <rect x="300" y="194" width="34" height="17" rx="8.5" fill="#f59e0b"/>
+  <text class="ui" x="317" y="206.5" font-size="10.5" font-weight="700" fill="#1c1917" text-anchor="middle">vip</text>
+  <text class="ui fg" x="202" y="223" font-size="12" font-weight="600">Can you look at this before the call?</text>
+  <text class="ui muted" x="600" y="204" font-size="11" text-anchor="end">09:05</text>
+
+  <!-- Row 4: plain -->
+  <rect x="168" y="246" width="448" height="58" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+  <text class="ui muted" x="202" y="270" font-size="13">No-reply Notifications</text>
+  <text class="ui muted" x="202" y="289" font-size="12">Your monthly statement is ready</text>
+  <text class="ui muted" x="600" y="270" font-size="11" text-anchor="end">08:31</text>
+
+  <text class="ui muted" x="168" y="336" font-size="11">The tag is applied as mail arrives, from your own reply history. Nothing to maintain by hand.</text>
+</svg>
