@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-23T10:04:45.655Z",
+  "generatedAt": "2026-09-23T11:24:35.356Z",
   "source": "https://github.com/Sarv/SarvInbox-extensions",
   "stats": {
     "stars": 1,
@@ -100,13 +100,13 @@
         "releaseTag": "email-summarization-v1.1.0"
       },
       "stats": {
-        "downloads": 17
+        "downloads": 18
       }
     },
     {
       "id": "otp-code",
       "name": "One-Time Passcodes",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "description": "Spots verification codes as they arrive and shows them with a copy button and a countdown, so you never open the mail to read six digits.",
       "author": "Sarv",
       "license": "SEE LICENSE IN LICENSE",
@@ -194,14 +194,14 @@
         }
       ],
       "download": {
-        "url": "https://github.com/Sarv/SarvInbox-extensions/releases/download/otp-code-v1.2.0/otp-code-1.2.0.tgz",
-        "sha256": "90a07c1eaa3ecad3d29f99f50cb702bb525cf8d86015613807f3f10bbf941226",
-        "size": 8133,
-        "publishedAt": "2026-09-23T10:04:25Z",
-        "releaseTag": "otp-code-v1.2.0"
+        "url": "https://github.com/Sarv/SarvInbox-extensions/releases/download/otp-code-v1.2.1/otp-code-1.2.1.tgz",
+        "sha256": "fb296c81e8a134fbda642d313d2c6e44d6a072d2cee0bf5b7b2ca52a06da4c72",
+        "size": 9917,
+        "publishedAt": "2026-09-23T11:24:14Z",
+        "releaseTag": "otp-code-v1.2.1"
       },
       "stats": {
-        "downloads": 20
+        "downloads": 23
       }
     },
     {
@@ -315,7 +315,7 @@
         "releaseTag": "receipts-tracker-v1.0.0"
       },
       "stats": {
-        "downloads": 4
+        "downloads": 5
       }
     },
     {
@@ -398,7 +398,7 @@
         "releaseTag": "vip-scoring-v1.1.0"
       },
       "stats": {
-        "downloads": 20
+        "downloads": 21
       }
     }
   ]
