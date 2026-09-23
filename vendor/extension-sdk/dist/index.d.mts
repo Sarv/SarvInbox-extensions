@@ -507,8 +507,27 @@ interface ExtensionManifest {
     keywords?: string[];
     /** Extension icon path (optional) */
     icon?: string;
-    /** Whether this is a builtin extension */
-    builtin?: boolean;
+    /**
+     * Pictures of the extension doing its job, shown before install.
+     *
+     * A permission list and a one-line description do not tell a reader what an
+     * extension will look like once it is running, so people install one to find
+     * out and then go looking for whatever changed. A picture answers that in
+     * the time it takes to glance at it.
+     *
+     * Optional, and only ever decoration: nothing here is used to decide what an
+     * extension may do. URLs are re-checked against the registry host allowlist
+     * before anything is loaded, so listing one cannot turn into a request to an
+     * arbitrary server.
+     */
+    screenshots?: ExtensionScreenshot[];
+}
+/** One picture of the extension in use. */
+interface ExtensionScreenshot {
+    /** Absolute https URL of the image. */
+    url: string;
+    /** One line saying what is being shown. Also the image's alt text. */
+    caption?: string;
 }
 /**
  * Extension contributions - what the extension provides
@@ -931,6 +950,18 @@ interface ExtensionUIAction {
     emailId?: string;
     /** The card's `accountId`, carried through alongside `emailId`. */
     accountId?: string;
+    /**
+     * The account the reader is looking at right now, which is not necessarily
+     * the account the card was raised from.
+     *
+     * One message delivered to two accounts is one message to the reader, so an
+     * extension may well show a single card for it. When the reader then acts on
+     * that card, the copy worth touching is the one in the mailbox on screen -
+     * without this the extension can only guess, and would file the message in
+     * whichever account happened to sync first. Absent when no single account is
+     * selected (a unified view).
+     */
+    activeAccountId?: string;
 }
 /** What an extension registers with `ui.onAction`. */
 type ExtensionUIActionHandler = (action: ExtensionUIAction) => void | Promise<void>;
