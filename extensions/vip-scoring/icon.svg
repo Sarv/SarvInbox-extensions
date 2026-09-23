@@ -1,3 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-  <path d="M12 3.5l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.6-4.8 2.6.9-5.4L4.2 9.2l5.4-.8z" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="VIP Senders">
+  <title>VIP Senders</title>
+  <!-- Literal colours: an <img> gives `currentColor` nothing to inherit. -->
+  <defs>
+    <linearGradient id="vipBadge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#vipBadge)"/>
+  <path d="M13 22h38a4 4 0 0 1 4 4v18a4 4 0 0 1-4 4H13a4 4 0 0 1-4-4V26a4 4 0 0 1 4-4z" fill="#ffffff" fill-opacity="0.22"/>
+  <path d="M10 26l22 14 22-14" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 12.5l4.3 8.7 9.6 1.4-6.9 6.8 1.6 9.6-8.6-4.5-8.6 4.5 1.6-9.6-6.9-6.8 9.6-1.4z" fill="#ffffff" stroke="#d97706" stroke-width="2" stroke-linejoin="round"/>
 </svg>
