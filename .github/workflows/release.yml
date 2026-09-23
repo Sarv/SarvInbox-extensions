@@ -148,6 +148,7 @@ jobs:
         run: node scripts/build-registry.mjs
 
       - name: Commit
+        id: commit
         run: |
           # --porcelain rather than `git diff --quiet`, because registry/ is
           # rebuilt from scratch and a new extension shows up as an untracked
@@ -161,3 +162,45 @@ jobs:
           git add registry.json registry/
           git commit -m "chore(registry): publish ${GITHUB_REF_NAME}"
           git push origin main
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      # The app asks the CDN for these documents before it asks GitHub, and the
+      # CDN caches a branch ref for 12 hours. Without this, a release published
+      # today is correct on GitHub and invisible in the app until that cache
+      # expires - which looks exactly like a release that never happened.
+      - name: Purge the CDN mirror
+        if: steps.commit.outputs.pushed == 'true'
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          for file in $(git ls-files registry); do
+            curl -fsS "https://purge.jsdelivr.net/gh/$REPO@main/$file" -o /dev/null \
+              || echo "WARN: could not purge $file" >&2
+          done
+
+      # A purge that did not take is the same silence as a release with no
+      # assets: every job green, and the catalogue everyone reads still stale.
+      # generatedAt makes this run's index unique, so a byte comparison proves
+      # the CDN is serving THIS registry and not a convincing older one.
+      - name: Verify the CDN serves the new registry
+        if: steps.commit.outputs.pushed == 'true'
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          served="$(mktemp)"
+          attempt=1
+          while true; do
+            if curl -fsS "https://cdn.jsdelivr.net/gh/$REPO@main/registry/index.json" -o "$served" \
+              && cmp -s "$served" registry/index.json; then
+              echo "OK: the CDN serves the registry published by $GITHUB_REF_NAME"
+              exit 0
+            fi
+            if [ "$attempt" -ge 5 ]; then
+              echo "The CDN still serves an older registry after $attempt checks" >&2
+              exit 1
+            fi
+            echo "CDN not updated yet - purging again (attempt $attempt)" >&2
+            curl -fsS "https://purge.jsdelivr.net/gh/$REPO@main/registry/index.json" -o /dev/null || true
+            attempt=$((attempt + 1))
+            sleep 10
+          done
