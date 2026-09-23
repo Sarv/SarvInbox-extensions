@@ -15,7 +15,7 @@
  * sourcemaps, no node_modules. The bundle is already self-contained.
  */
 import { execFile } from 'node:child_process';
-import { access, cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { access, cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -40,6 +40,66 @@ const SHIPPED = [
   { from: 'README.md', required: false },
 ];
 
+/**
+ * File types a panel page is allowed to load.
+ *
+ * The same allow-list the app serves under (`panelAssetContentType` in
+ * `@sarvinbox/core`): anything outside it is refused by the panel protocol at
+ * runtime, so shipping it would only add weight to the archive.
+ */
+const PANEL_ASSET_EXTENSIONS = new Set([
+  'html', 'htm', 'js', 'mjs', 'css', 'json', 'map',
+  'svg', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'ico',
+  'woff', 'woff2', 'ttf', 'otf',
+]);
+
+/**
+ * The panel files to ship, derived from the manifest.
+ *
+ * A panel entry names one HTML file, but that page pulls in a stylesheet, a
+ * script and whatever else it draws with — none of which the manifest lists.
+ * Rather than parse the HTML for its references, the convention is that a
+ * panel lives in its own directory and that directory ships whole. The entry
+ * MUST therefore be in a subdirectory: a panel entry at the extension root
+ * would make "its directory" mean the whole extension, sweeping up sources,
+ * screenshots and anything else the author left lying about.
+ *
+ * Without this an extension that declares a panel packs and releases cleanly
+ * and then shows an empty frame on the reader's machine, because the page the
+ * manifest points at was never in the archive.
+ */
+async function panelFiles(sourceDir, manifest) {
+  const panels = manifest.contributes?.panels ?? [];
+  const shipped = new Map();
+
+  for (const panel of panels) {
+    const entry = String(panel.entry ?? '');
+    const dir = path.posix.dirname(entry);
+    if (!entry || dir === '.' || dir === '/' || entry.startsWith('..')) {
+      throw new Error(
+        `panel '${panel.id}': entry '${entry}' must live in a subdirectory, e.g. panel/index.html`
+      );
+    }
+
+    const absolute = path.join(sourceDir, dir);
+    const names = await readdir(absolute, { recursive: true, withFileTypes: true });
+    for (const item of names) {
+      if (!item.isFile()) continue;
+      const extension = path.extname(item.name).slice(1).toLowerCase();
+      if (!PANEL_ASSET_EXTENSIONS.has(extension)) continue;
+      // `parentPath` is where the entry was found; on Node 20 it is `path`.
+      const from = path.relative(sourceDir, path.join(item.parentPath ?? item.path, item.name));
+      shipped.set(from, { from, required: false });
+    }
+
+    if (!shipped.has(entry)) {
+      throw new Error(`panel '${panel.id}': ${entry} is missing`);
+    }
+  }
+
+  return [...shipped.values()];
+}
+
 async function exists(file) {
   try {
     await access(file);
@@ -61,7 +121,7 @@ async function main() {
 
   const staging = await mkdtemp(path.join(tmpdir(), `sarvinbox-ext-${id}-`));
   try {
-    for (const entry of SHIPPED) {
+    for (const entry of [...SHIPPED, ...(await panelFiles(sourceDir, manifest))]) {
       const from = path.join(sourceDir, entry.from);
       if (!(await exists(from))) {
         if (entry.required) {
