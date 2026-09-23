@@ -1,7 +1,7 @@
 {
   "id": "otp-code",
   "name": "One-Time Passcodes",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Spots verification codes as they arrive and shows them with a copy button and a countdown, so you never open the mail to read six digits.",
   "author": "Sarv",
   "repository": "https://github.com/Sarv/SarvInbox-extensions",
@@ -53,6 +53,14 @@
         "type": "boolean",
         "default": true,
         "description": "Mark the email read once you copy its code"
+      },
+      {
+        "key": "otp-code.dismissAfterCopyMs",
+        "type": "number",
+        "default": 3000,
+        "minimum": 0,
+        "maximum": 60000,
+        "description": "How long the card stays on screen after you copy the code (0 keeps it until it expires)"
       },
       {
         "key": "otp-code.minConfidence",

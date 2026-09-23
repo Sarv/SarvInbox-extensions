@@ -6,10 +6,10 @@ import type {
   ExtensionUINotification,
   ExtensionWorkflow,
 } from '@sarvinbox/extension-sdk';
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 
 
-import { activate, resolveMinConfidence } from '../../src/index';
+import { activate, deactivate, resolveDismissAfterCopyMs, resolveMinConfidence } from '../../src/index';
 import { MIN_CONFIDENCE } from '../../src/otp-detect';
 
 const NOW_SECONDS = Math.floor(Date.now() / 1000);
@@ -314,6 +314,122 @@ describe('marking read on copy', () => {
     await harness.act({ notificationId: 'something-else', action: 'copy' });
 
     expect(harness.mailCalls).toEqual([]);
+  });
+});
+
+/**
+ * Taking the card down once its code has been used.
+ *
+ * What breaks if this goes red: the card sits over the reader's mail until its
+ * countdown runs out, long after they copied the code and moved on — which for
+ * a ten-minute code is ten minutes of something they are done with covering
+ * something they are not.
+ *
+ * The timer is the part worth pinning. It has to survive the setting being
+ * absent, refuse to fire for actions that are not a copy, be cancellable on
+ * deactivation, and treat a nonsense value as "use the default" rather than as
+ * "never" — the failure mode of getting that backwards is a feature that looks
+ * simply broken.
+ */
+describe('dismissing the card after a copy', () => {
+  afterEach(() => {
+    deactivate();
+    vi.useRealTimers();
+  });
+
+  const copy = { notificationId: 'code:email-1', action: 'copy' as const, emailId: 'email-1' };
+
+  it('takes the card down a few seconds after the code is copied', async () => {
+    vi.useFakeTimers();
+    const harness = activateHarness();
+
+    await harness.act(copy);
+    expect(harness.dismissed).toEqual([]);
+
+    vi.advanceTimersByTime(3000);
+    expect(harness.dismissed).toEqual(['code:email-1']);
+  });
+
+  it('honours the wait the reader chose', async () => {
+    vi.useFakeTimers();
+    const harness = activateHarness({ 'otp-code.dismissAfterCopyMs': 8000 });
+
+    await harness.act(copy);
+    vi.advanceTimersByTime(3000);
+    expect(harness.dismissed).toEqual([]);
+
+    vi.advanceTimersByTime(5000);
+    expect(harness.dismissed).toEqual(['code:email-1']);
+  });
+
+  // Regression: 0 is the one value that means "leave it up", and it has to be
+  // told apart from a missing setting, which means the default.
+  it('leaves the card alone when the wait is set to zero', async () => {
+    vi.useFakeTimers();
+    const harness = activateHarness({ 'otp-code.dismissAfterCopyMs': 0 });
+
+    await harness.act(copy);
+    vi.advanceTimersByTime(60_000);
+
+    expect(harness.dismissed).toEqual([]);
+  });
+
+  // Regression: dismissing on 'expire' fought the host's own expiry, and
+  // dismissing on 'dismiss' re-dismissed a card that was already gone.
+  it.each(['dismiss', 'expire', 'open'] as const)('does not fire on a %s', async (action) => {
+    vi.useFakeTimers();
+    const harness = activateHarness();
+
+    await harness.act({ notificationId: 'code:email-1', action, emailId: 'email-1' });
+    vi.advanceTimersByTime(60_000);
+
+    expect(harness.dismissed).toEqual([]);
+  });
+
+  // Regression: the card comes down whether or not the reader also asked for
+  // the message to be filed - two settings, two behaviours.
+  it('still comes down when marking read is turned off', async () => {
+    vi.useFakeTimers();
+    const harness = activateHarness({ 'otp-code.markReadOnCopy': false });
+
+    await harness.act(copy);
+    vi.advanceTimersByTime(3000);
+
+    expect(harness.mailCalls).toEqual([]);
+    expect(harness.dismissed).toEqual(['code:email-1']);
+  });
+
+  // Regression: a pending timer outlived the extension and called into a host
+  // that had stopped listening - and across a reload it took down a card the
+  // new instance had only just raised.
+  it('cancels a pending dismissal when the extension is deactivated', async () => {
+    vi.useFakeTimers();
+    const harness = activateHarness();
+
+    await harness.act(copy);
+    deactivate();
+    vi.advanceTimersByTime(60_000);
+
+    expect(harness.dismissed).toEqual([]);
+  });
+});
+
+describe('resolveDismissAfterCopyMs', () => {
+  it.each([undefined, null, 'soon', Number.NaN, Number.POSITIVE_INFINITY, -1])(
+    'falls back to the default for %s',
+    (value) => {
+      expect(resolveDismissAfterCopyMs(value)).toBe(3000);
+    }
+  );
+
+  it('keeps zero, which means leave the card up', () => {
+    expect(resolveDismissAfterCopyMs(0)).toBe(0);
+  });
+
+  // Regression: a wait longer than the code's own life left a timer holding a
+  // notification id for a card that had expired minutes earlier.
+  it('caps a wait longer than any code lives', () => {
+    expect(resolveDismissAfterCopyMs(10 * 60 * 1000)).toBe(60_000);
   });
 });
 

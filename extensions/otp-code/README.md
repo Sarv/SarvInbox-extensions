@@ -34,6 +34,7 @@ code from last March is not something you are waiting for.
 | `otp-code.enabled` | `true` | Surface codes at all |
 | `otp-code.tagEmails` | `true` | Also tag the message `otp` |
 | `otp-code.markReadOnCopy` | `true` | Mark the message read once you copy its code |
+| `otp-code.dismissAfterCopyMs` | `3000` | How long the card stays on screen after you copy the code. Set it to `0` to leave the card up until its countdown runs out |
 | `otp-code.minConfidence` | `0.55` | How certain the detector must be. Raise it if you see false positives, lower it if codes are being missed |
 
 ## How detection works
