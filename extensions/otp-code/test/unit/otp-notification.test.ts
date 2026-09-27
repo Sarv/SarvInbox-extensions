@@ -2,12 +2,13 @@ import { describe, it, expect } from 'vitest';
 
 import type { OtpDetection } from '../../src/otp-detect';
 import {
-  MAX_NOTIFY_AGE_MS,
   buildOtpNotification,
-  isFreshEnoughToNotify,
+  codeExpiresAtMs,
+  isAlreadyRead,
   notificationId,
   receivedAtMs,
   senderLabel,
+  shouldNotifyForCode,
 } from '../../src/otp-notification';
 
 const NOW = 1_700_000_000_000;
@@ -29,10 +30,17 @@ describe('receivedAtMs', () => {
     expect(receivedAtMs({ date: NOW_SECONDS, receivedDate: null })).toBe(NOW);
   });
 
-  // Regression: a sender with a wrong clock must not be able to make an old
-  // code look fresh — our own receive time wins whenever we have it.
-  it('prefers our receive time over the sender Date header', () => {
-    expect(receivedAtMs({ date: 1, receivedDate: NOW_SECONDS })).toBe(NOW);
+  // Regression: receivedDate is when THIS app synced the row. On a fresh setup
+  // it is "now" for hours-old mail, and preferring it put stale codes on cards.
+  // The server's INTERNALDATE (`date`) is when the code was really delivered.
+  it('prefers the server delivery time over our own sync time', () => {
+    const hourAgo = NOW_SECONDS - 3600;
+    expect(receivedAtMs({ date: hourAgo, receivedDate: NOW_SECONDS })).toBe(hourAgo * 1000);
+  });
+
+  // Regression: a row with no delivery time must still be timed by something.
+  it('falls back to our sync time when the delivery time is unusable', () => {
+    expect(receivedAtMs({ date: 0, receivedDate: NOW_SECONDS })).toBe(NOW);
   });
 
   // Regression: absent or nonsensical timestamps must not become epoch 0 or
@@ -46,37 +54,92 @@ describe('receivedAtMs', () => {
   });
 });
 
-describe('isFreshEnoughToNotify', () => {
-  // Regression: this gate is what stops a first sync of a large mailbox firing
-  // a burst of cards for codes that expired months ago.
-  it('rejects mail older than the window', () => {
-    const old = { date: (NOW - MAX_NOTIFY_AGE_MS - 1000) / 1000, receivedDate: null };
-    expect(isFreshEnoughToNotify(old, NOW)).toBe(false);
+describe('codeExpiresAtMs', () => {
+  // Regression: the expiry used to count from detection, so a code found five
+  // minutes late got a fresh full countdown and looked valid when it was not.
+  it('counts the validity from when the mail arrived', () => {
+    const fiveMinutesAgo = { date: (NOW - 5 * 60_000) / 1000, receivedDate: NOW_SECONDS };
+    expect(codeExpiresAtMs(fiveMinutesAgo, detection, NOW)).toBe(NOW);
   });
+
+  // Regression: a server clock running fast must not stretch the countdown
+  // past the validity the mail states.
+  it('counts from now for mail dated in the future', () => {
+    const future = { date: (NOW + 60_000) / 1000, receivedDate: null };
+    expect(codeExpiresAtMs(future, detection, NOW)).toBe(NOW + detection.expiresInMs);
+  });
+
+  // Regression: no timestamp must not become an expiry near epoch 0.
+  it('returns null with no usable timestamp', () => {
+    expect(codeExpiresAtMs({ date: 0, receivedDate: null }, detection, NOW)).toBeNull();
+  });
+});
+
+describe('isAlreadyRead', () => {
+  // Regression: a read code has been seen (or used elsewhere); carding it again
+  // after setup is noise over the reader's mail.
+  it('is true for mail carrying the read tag', () => {
+    expect(isAlreadyRead({ tags: '|inbox|read|' })).toBe(true);
+  });
+
+  // Regression: unread codes are the only ones worth a card.
+  it.each([
+    ['other tags', '|inbox|starred|'],
+    ['no tags', ''],
+  ])('is false with %s', (_label, tags) => {
+    expect(isAlreadyRead({ tags })).toBe(false);
+  });
+
+  // Regression: a partial record without tags must not throw in the pipeline.
+  it('treats a record with no tags as unread', () => {
+    expect(isAlreadyRead({ tags: undefined as unknown as string })).toBe(false);
+  });
+});
+
+describe('shouldNotifyForCode', () => {
+  const unread = (ageMs: number) => ({ date: (NOW - ageMs) / 1000, receivedDate: NOW_SECONDS, tags: '|inbox|' });
 
   // Regression: mail that just landed is the whole reason the extension exists.
-  it('accepts mail that just arrived', () => {
-    expect(isFreshEnoughToNotify({ date: NOW_SECONDS, receivedDate: null }, NOW)).toBe(true);
+  it('shows an unread code that just arrived', () => {
+    expect(shouldNotifyForCode(unread(0), detection, NOW)).toBe(true);
   });
 
-  // Regression: exactly at the boundary must stay inclusive, so a code that
-  // arrives at the edge of the window is not silently dropped.
-  it('accepts mail exactly at the window boundary', () => {
-    const edge = { date: (NOW - MAX_NOTIFY_AGE_MS) / 1000, receivedDate: null };
-    expect(isFreshEnoughToNotify(edge, NOW)).toBe(true);
+  // Regression: the fresh-setup bug. Mail synced just now but delivered after
+  // its stated validity ran out must stay quiet.
+  it('skips a code whose stated validity has already run out', () => {
+    expect(shouldNotifyForCode(unread(detection.expiresInMs + 1000), detection, NOW)).toBe(false);
   });
 
-  // Regression: a sender clock running fast is common. Treating a future date
-  // as stale would hide real codes from whole providers.
-  it('accepts mail dated in the future', () => {
-    const future = { date: (NOW + 60_000) / 1000, receivedDate: null };
-    expect(isFreshEnoughToNotify(future, NOW)).toBe(true);
+  // Regression: the edge is exclusive. A countdown already at zero is useless.
+  it('skips a code expiring exactly now', () => {
+    expect(shouldNotifyForCode(unread(detection.expiresInMs), detection, NOW)).toBe(false);
+  });
+
+  // Regression: a code with time left still surfaces even when found late.
+  it('shows a code found late that still has time left', () => {
+    expect(shouldNotifyForCode(unread(detection.expiresInMs - 60_000), detection, NOW)).toBe(true);
+  });
+
+  // Regression: a long validity the mail states itself is honoured.
+  it('honours a long validity stated by the mail', () => {
+    const hour = { ...detection, expiresInMs: 60 * 60_000 };
+    expect(shouldNotifyForCode(unread(30 * 60_000), hour, NOW)).toBe(true);
+  });
+
+  // Regression: an already-read code must not be carded, however fresh.
+  it('skips a read message even when the code is still valid', () => {
+    expect(shouldNotifyForCode({ ...unread(0), tags: '|inbox|read|' }, detection, NOW)).toBe(false);
+  });
+
+  // Regression: a server clock running fast must not hide a real code.
+  it('shows mail dated in the future', () => {
+    expect(shouldNotifyForCode(unread(-60_000), detection, NOW)).toBe(true);
   });
 
   // Regression: with no usable timestamp we cannot tell fresh from archived,
   // so we stay quiet rather than interrupt on a guess.
-  it('rejects mail with no usable timestamp', () => {
-    expect(isFreshEnoughToNotify({ date: 0, receivedDate: null }, NOW)).toBe(false);
+  it('skips mail with no usable timestamp', () => {
+    expect(shouldNotifyForCode({ date: 0, receivedDate: null, tags: '' }, detection, NOW)).toBe(false);
   });
 });
 
@@ -99,6 +162,8 @@ describe('buildOtpNotification', () => {
     accountId: 'account-1',
     fromName: 'Sarv Security',
     fromAddress: 'no-reply@sarv.com',
+    date: NOW_SECONDS,
+    receivedDate: NOW_SECONDS,
   };
 
   // Regression: the id must be derived from the email, because re-notifying
@@ -114,6 +179,19 @@ describe('buildOtpNotification', () => {
   // duration here would restart the countdown on every re-render.
   it('sends an absolute expiry instant', () => {
     expect(buildOtpNotification(email, detection, { now: NOW }).expiresAt).toBe(NOW + detection.expiresInMs);
+  });
+
+  // Regression: the countdown must show the time the code really has left,
+  // not a fresh full validity from whenever the app happened to notice it.
+  it('counts the expiry from when the mail arrived', () => {
+    const late = { ...email, date: NOW_SECONDS - 120 };
+    expect(buildOtpNotification(late, detection, { now: NOW }).expiresAt).toBe(NOW - 120_000 + detection.expiresInMs);
+  });
+
+  // Regression: a record with no timestamp still gets a sane countdown.
+  it('falls back to a full validity from now with no usable timestamp', () => {
+    const undated = { ...email, date: 0, receivedDate: null };
+    expect(buildOtpNotification(undated, detection, { now: NOW }).expiresAt).toBe(NOW + detection.expiresInMs);
   });
 
   // Regression: the copy button is the point of the card. Losing `copyable`

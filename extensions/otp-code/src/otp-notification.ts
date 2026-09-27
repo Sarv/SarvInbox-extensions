@@ -7,20 +7,9 @@
  * extension host, a window, or a clock.
  */
 
-import type { EmailRecord, ExtensionUINotification } from '@sarvinbox/extension-sdk';
+import { hasTag, type EmailRecord, type ExtensionUINotification } from '@sarvinbox/extension-sdk';
 
 import type { OtpDetection } from './otp-detect';
-
-/**
- * How recently the mail must have arrived for a card to be worth showing.
- *
- * A code is only useful while the login attempt that triggered it is still on
- * screen. Without this bound, a first sync of a 40,000-message mailbox, an
- * account re-add, or a folder re-scan would fire a burst of cards for codes
- * that expired months ago. The tag is still applied in those cases — it is the
- * interruption that is gated, not the detection.
- */
-export const MAX_NOTIFY_AGE_MS = 15 * 60 * 1000;
 
 /** Tag applied to every mail a code was found in, so codes stay searchable. */
 export const OTP_TAG = 'otp';
@@ -29,30 +18,65 @@ export const OTP_TAG = 'otp';
 const CARD_PREFIX = 'code';
 
 /**
- * UTC epoch milliseconds the mail arrived, preferring the time WE received it
- * over the sender's `Date:` header — a sender with a wrong clock must not be
- * able to make an old code look fresh (or a fresh one look old).
+ * UTC epoch milliseconds the mail reached the server.
+ *
+ * `date` is the server's INTERNALDATE, which is when the code was actually
+ * delivered. `receivedDate` is when THIS app synced the row, so on a fresh
+ * setup, an account re-add or a folder re-scan it is "now" for mail that is
+ * hours old. Preferring it made every backlogged code look brand new, and the
+ * first sync after setup put stale codes up on cards. It is only the fallback
+ * for a row with no usable `date`.
  */
 export function receivedAtMs(email: Pick<EmailRecord, 'date' | 'receivedDate'>): number | null {
-  const seconds = email.receivedDate ?? email.date;
-  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) return null;
-  return seconds * 1000;
+  const seconds = [email.date, email.receivedDate].find(
+    (value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0
+  );
+  return seconds === undefined ? null : seconds * 1000;
 }
 
 /**
- * True when the mail is recent enough to interrupt the user for.
+ * UTC epoch ms the code stops working: its arrival plus the validity the mail
+ * states, or the default when it states none.
  *
- * Mail dated in the future is treated as fresh rather than rejected: a skewed
- * sender clock is common and a real code should still surface.
+ * Anchored to arrival, not to detection. A code found five minutes after it
+ * landed has five minutes left, not ten. A future arrival (a skewed server
+ * clock) counts from now, so the countdown can never run longer than the mail
+ * says the code lasts. Null when the mail has no usable timestamp.
  */
-export function isFreshEnoughToNotify(
+export function codeExpiresAtMs(
   email: Pick<EmailRecord, 'date' | 'receivedDate'>,
-  now: number = Date.now(),
-  maxAgeMs: number = MAX_NOTIFY_AGE_MS
-): boolean {
+  detection: Pick<OtpDetection, 'expiresInMs'>,
+  now: number = Date.now()
+): number | null {
   const arrived = receivedAtMs(email);
-  if (arrived === null) return false;
-  return now - arrived <= maxAgeMs;
+  if (arrived === null) return null;
+  return Math.min(arrived, now) + detection.expiresInMs;
+}
+
+/** True when the reader has already seen the message, on this or any device. */
+export function isAlreadyRead(email: Pick<EmailRecord, 'tags'>): boolean {
+  return hasTag(email.tags ?? '', 'read');
+}
+
+/**
+ * True when the code is worth interrupting the reader for: the message is
+ * still unread and the code has not expired yet.
+ *
+ * A read message means the reader has already seen the code, or used it
+ * somewhere else. An expired code cannot be used at all. Without this check,
+ * the first sync of a large mailbox would put up a burst of cards for codes
+ * that died long ago. The tag is still applied either way; only the card is
+ * skipped. With no usable timestamp we cannot tell fresh mail from old, so no
+ * card is shown.
+ */
+export function shouldNotifyForCode(
+  email: Pick<EmailRecord, 'date' | 'receivedDate' | 'tags'>,
+  detection: Pick<OtpDetection, 'expiresInMs'>,
+  now: number = Date.now()
+): boolean {
+  if (isAlreadyRead(email)) return false;
+  const expiresAt = codeExpiresAtMs(email, detection, now);
+  return expiresAt !== null && expiresAt > now;
 }
 
 /** Who the code came from, for the supporting line on the card. */
@@ -93,16 +117,16 @@ export interface OtpNotificationOptions {
    * copy folds into the first card rather than stacking beside it.
    */
   cardId?: string;
-  /** Epoch ms detection happened, for the expiry. Defaults to now. */
+  /** Epoch ms to measure the expiry against. Defaults to now. */
   now?: number;
 }
 
 /**
- * Build the card. `expiresAt` is absolute UTC epoch ms so the renderer can run
- * its countdown without knowing when detection happened.
+ * Build the card. `expiresAt` is absolute UTC epoch ms, counted from when the
+ * mail arrived, so the countdown shows the time the code really has left.
  */
 export function buildOtpNotification(
-  email: Pick<EmailRecord, 'id' | 'accountId' | 'fromName' | 'fromAddress'>,
+  email: Pick<EmailRecord, 'id' | 'accountId' | 'fromName' | 'fromAddress' | 'date' | 'receivedDate'>,
   detection: OtpDetection,
   options: OtpNotificationOptions = {}
 ): ExtensionUINotification {
@@ -112,7 +136,7 @@ export function buildOtpNotification(
     title: 'Verification code',
     body: senderLabel(email),
     fields: [{ label: 'Code', value: detection.code, copyable: true, emphasis: true }],
-    expiresAt: now + detection.expiresInMs,
+    expiresAt: codeExpiresAtMs(email, detection, now) ?? now + detection.expiresInMs,
     emailId: email.id,
     ...(email.accountId ? { accountId: email.accountId } : {}),
   };

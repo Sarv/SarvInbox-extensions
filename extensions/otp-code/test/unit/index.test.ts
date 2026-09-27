@@ -197,6 +197,37 @@ describe('otp-code workflow', () => {
     expect(harness.notified).toHaveLength(0);
   });
 
+  // Regression: the fresh-setup bug. Setup syncs hours-old mail with
+  // receivedDate = now; only the server delivery date shows it is stale.
+  it('does not card an old code that was only just synced', async () => {
+    const harness = activateHarness();
+    const synced = makeEmail({ date: NOW_SECONDS - 60 * 60, receivedDate: NOW_SECONDS });
+    const result = await harness.workflow.process(synced, NO_CONTEXT);
+
+    expect(result.labelsToAdd).toEqual(['otp']);
+    expect(harness.notified).toHaveLength(0);
+  });
+
+  // Regression: a code the reader has already read must not come back as a card.
+  it('tags but does not card an already-read message', async () => {
+    const harness = activateHarness();
+    const result = await harness.workflow.process(makeEmail({ tags: '|inbox|read|' }), NO_CONTEXT);
+
+    expect(result.labelsToAdd).toEqual(['otp']);
+    expect(harness.notified).toHaveLength(0);
+  });
+
+  // Regression: a code found late keeps only the validity it has left.
+  it('counts the card countdown from delivery, not detection', async () => {
+    const harness = activateHarness();
+    await harness.workflow.process(makeEmail({ date: NOW_SECONDS - 4 * 60 }), NO_CONTEXT);
+
+    expect(harness.notified).toHaveLength(1);
+    const remaining = (harness.notified[0].expiresAt ?? 0) - Date.now();
+    expect(remaining).toBeLessThanOrEqual(6 * 60_000 + 1000);
+    expect(remaining).toBeGreaterThan(5 * 60_000);
+  });
+
   // Regression: a user who only wants the card must not have their mail
   // silently relabelled.
   it('omits the tag when tagging is turned off', async () => {

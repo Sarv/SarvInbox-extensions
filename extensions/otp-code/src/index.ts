@@ -26,7 +26,7 @@ import {
 } from './otp-cards';
 import { MIN_CONFIDENCE, detectOtpCode } from './otp-detect';
 import { shouldScanForCode } from './otp-gate';
-import { OTP_TAG, buildOtpNotification, isFreshEnoughToNotify } from './otp-notification';
+import { OTP_TAG, buildOtpNotification, shouldNotifyForCode } from './otp-notification';
 
 const WORKFLOW_ID = 'detect-code';
 
@@ -201,9 +201,10 @@ export function activate(context: ExtensionContext): void {
         const floor = resolveMinConfidence(context.settings.get<number>(SETTING_MIN_CONFIDENCE));
         if (detection.confidence < floor) return { success: true };
 
-        // Stale mail is left out of the index entirely: a backlogged copy must
-        // not claim the card and then silence a copy that arrives fresh.
-        if (isFreshEnoughToNotify(email)) {
+        // Read mail and expired codes are left out of the index entirely: a
+        // backlogged copy must not claim the card and then silence a copy that
+        // arrives fresh.
+        if (shouldNotifyForCode(email, detection)) {
           const decision = decideCard(cards, email, detection.code);
           if (decision.show) {
             context.ui.notify(buildOtpNotification(email, detection, { cardId: decision.cardId }));

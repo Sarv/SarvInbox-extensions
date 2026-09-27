@@ -22,10 +22,13 @@ and never sits unread.
 
 The countdown uses the validity the email itself states ("this code expires in
 10 minutes") when it says one, and falls back to 10 minutes when it does not.
+It counts from when the mail arrived, not from when the app noticed it, so a
+code found five minutes late shows the five minutes it really has left.
 
-Cards are only shown for mail that arrived in the last 15 minutes. Syncing an
-old mailbox tags the codes it finds but does not interrupt you with them — a
-code from last March is not something you are waiting for.
+Cards are only shown for codes that are still **unread** and **not yet
+expired**. Setting up the app, re-adding an account or re-scanning a folder
+still tags every code it finds, but it does not put up cards for mail you have
+already read or codes that stopped working long ago.
 
 ## Settings
 
